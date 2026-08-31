@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import { parseApiError } from "@/lib/api-error";
 import type {
   CollectLog,
   CollectRunResult,
@@ -42,7 +43,7 @@ export function updateCollectSource(
 
 export async function deleteCollectSource(id: number): Promise<void> {
   const res = await fetch(`${getApiBase()}/api/admin/sources/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
 }
 
 export function runCollectSource(id: number): Promise<CollectRunResult> {

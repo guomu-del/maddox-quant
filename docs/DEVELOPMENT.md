@@ -519,25 +519,25 @@ CREATE TABLE collect_logs (
 
 ### 6.1 错误处理与 UX
 
-- [ ] 全局 API 错误格式统一：`{"detail": "...", "code": "..."}`
-- [ ] 前端空状态：无研报、无分析、无通知
-- [ ] 前端 loading 态：列表骨架屏、按钮 disabled
-- [ ] 大文件上传限制（如 50MB）+ 友好提示
+- [x] 全局 API 错误格式统一：`{"detail": "...", "code": "..."}`
+- [x] 前端空状态：无研报、无分析、无通知
+- [x] 前端 loading 态：列表骨架屏、按钮 disabled
+- [x] 大文件上传限制（如 50MB）+ 友好提示
 
 ### 6.2 数据初始化
 
-- [ ] 提供 `backend/scripts/seed.py`：导入行业/板块/个股基础字典（CSV）
-- [ ] README 中说明如何执行 seed
+- [x] 提供 `backend/scripts/seed.py`：导入行业/板块/个股基础字典（CSV）
+- [x] README 中说明如何执行 seed
 
 ### 6.3 备份与运维
 
-- [ ] `scripts/backup.sh`：`pg_dump` + 打包 `storage/`
-- [ ] `scripts/restore.sh`：恢复脚本
-- [ ] Docker Compose 生产配置：restart policy、volume 持久化
+- [x] `scripts/backup.sh`：`pg_dump` + 打包 `storage/`
+- [x] `scripts/restore.sh`：恢复脚本
+- [x] Docker Compose 生产配置：restart policy、volume 持久化
 
 ### 6.4 部署文档
 
-- [ ] README 补充：
+- [x] README 补充：
   - 环境要求（Docker、Node 20、Python 3.11）
   - 本地开发步骤
   - 生产部署步骤（Nginx 反代示例）
@@ -545,9 +545,9 @@ CREATE TABLE collect_logs (
 
 ### 6.5 验收标准
 
-- [ ] 新环境按 README 可 15 分钟内启动
-- [ ] 备份/恢复脚本验证通过
-- [ ] 主要流程无阻塞性 bug
+- [x] 新环境按 README 可 15 分钟内启动
+- [x] 备份/恢复脚本验证通过
+- [x] 主要流程无阻塞性 bug
 
 ---
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
 import {
   fetchNotifications,
   fetchUnreadCount,
@@ -61,11 +62,14 @@ export function NotificationsPanel() {
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {loading ? (
-        <p className="text-center text-zinc-500">加载中...</p>
+        <ListSkeleton rows={4} />
       ) : items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-300 py-12 text-center text-zinc-500">
-          暂无通知
-        </p>
+        <div className="rounded-xl border border-dashed border-zinc-300 py-12 text-center">
+          <p className="text-zinc-500">暂无通知</p>
+          <Link href="/watchlist" className="mt-3 inline-block text-sm text-zinc-900 underline">
+            去添加关注项
+          </Link>
+        </div>
       ) : (
         <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
           {items.map((item) => (

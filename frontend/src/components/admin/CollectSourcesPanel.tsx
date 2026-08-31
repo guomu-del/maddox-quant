@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
 import {
   createCollectSource,
   deleteCollectSource,
@@ -167,7 +168,7 @@ export function CollectSourcesPanel() {
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {loading ? (
-        <p className="text-center text-zinc-500">加载中...</p>
+        <ListSkeleton rows={5} />
       ) : sources.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 py-12 text-center text-zinc-500">
           暂无采集源，请先添加 RSS 源

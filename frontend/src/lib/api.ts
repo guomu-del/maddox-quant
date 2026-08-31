@@ -1,3 +1,5 @@
+import { parseApiError } from "@/lib/api-error";
+
 function getApiBase(): string {
   if (typeof window === "undefined") {
     return (
@@ -16,7 +18,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     cache: "no-store",
   });
   if (!res.ok) {
-    throw new Error(await res.text());
+    throw new Error(await parseApiError(res));
   }
   return res.json() as Promise<T>;
 }

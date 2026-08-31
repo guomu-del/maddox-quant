@@ -1,3 +1,4 @@
+import { parseApiError } from "@/lib/api-error";
 import type {
   IndustryAnalysisData,
   OverviewData,
@@ -17,7 +18,7 @@ function getApiBase(): string {
 
 export async function fetchOverview(): Promise<OverviewData> {
   const res = await fetch(`${getApiBase()}/api/analysis/overview`, { cache: "no-store" });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<OverviewData>;
 }
 
@@ -25,7 +26,7 @@ export async function fetchIndustryAnalysis(code: string): Promise<IndustryAnaly
   const res = await fetch(`${getApiBase()}/api/analysis/industry/${encodeURIComponent(code)}`, {
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<IndustryAnalysisData>;
 }
 
@@ -33,6 +34,6 @@ export async function fetchStockAnalysis(code: string): Promise<StockAnalysisDat
   const res = await fetch(`${getApiBase()}/api/analysis/stock/${encodeURIComponent(code)}`, {
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<StockAnalysisData>;
 }
