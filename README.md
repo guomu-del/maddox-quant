@@ -21,6 +21,7 @@
 ## 文档
 
 - [开发步骤（DEVELOPMENT.md）](./docs/DEVELOPMENT.md) — 分 Phase 详细开发指南
+- [实现计划（Superpowers）](./docs/superpowers/plans/2026-08-31-maddox-quant-mvp.md) — 可执行任务清单（TDD）
 
 ## 快速开始
 
