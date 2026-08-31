@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.aggregation import router as aggregation_router
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.reports import router as reports_router
 from app.core.config import settings
@@ -18,6 +19,7 @@ app.add_middleware(
 
 app.include_router(reports_router)
 app.include_router(analysis_router)
+app.include_router(aggregation_router)
 
 
 @app.get("/health")
