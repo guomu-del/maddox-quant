@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.admin_sources import router as admin_sources_router
 from app.api.routes.aggregation import router as aggregation_router
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.notifications import router as notifications_router
@@ -12,14 +12,15 @@ from app.api.routes.watchlist import router as watchlist_router
 from app.core.config import settings
 from app.core.database import check_database_connection
 from app.tasks.event_detector import run_event_detection
+from app.tasks.scheduler import reload_collect_schedules, scheduler
 
-scheduler = BackgroundScheduler()
+scheduler.add_job(run_event_detection, "interval", minutes=5, id="event_detection")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    scheduler.add_job(run_event_detection, "interval", minutes=5, id="event_detection")
     scheduler.start()
+    reload_collect_schedules()
     yield
     scheduler.shutdown()
 
@@ -39,6 +40,7 @@ app.include_router(analysis_router)
 app.include_router(aggregation_router)
 app.include_router(watchlist_router)
 app.include_router(notifications_router)
+app.include_router(admin_sources_router)
 
 
 @app.get("/health")

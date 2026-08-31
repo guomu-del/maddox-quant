@@ -6,6 +6,7 @@ const navItems = [
   { href: "/reports", label: "研报" },
   { href: "/analysis", label: "分析看板" },
   { href: "/watchlist", label: "我的关注" },
+  { href: "/admin/sources", label: "采集管理" },
 ];
 
 export function SiteHeader() {
