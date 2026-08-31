@@ -67,6 +67,14 @@ def client(db_session, tmp_path, monkeypatch):
     monkeypatch.setattr(reports_routes.settings, "storage_path", str(tmp_path))
     monkeypatch.setattr(parse_report_module.settings, "storage_path", str(tmp_path))
 
+    class _SessionLocal:
+        def __call__(self):
+            return db_session
+
+    session_factory = _SessionLocal()
+    monkeypatch.setattr(parse_report_module, "SessionLocal", session_factory)
+    monkeypatch.setattr("app.tasks.analyze_report.SessionLocal", session_factory)
+
     def override_get_db():
         yield db_session
 

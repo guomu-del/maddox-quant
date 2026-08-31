@@ -1,9 +1,13 @@
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ARRAY, Date, DateTime, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.analysis import AnalysisJob, AnalysisResult
 
 
 class Report(Base):
@@ -31,3 +35,8 @@ class Report(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    analysis_result: Mapped["AnalysisResult | None"] = relationship(
+        back_populates="report", uselist=False
+    )
+    analysis_jobs: Mapped[list["AnalysisJob"]] = relationship(back_populates="report")

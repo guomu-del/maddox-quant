@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.report import Report
 from app.services.pdf_parser import extract_text_from_pdf
+from app.tasks.analyze_report import trigger_auto_analyze
 
 
 def parse_report_task(report_id: int) -> None:
@@ -26,5 +27,8 @@ def parse_report_task(report_id: int) -> None:
         except Exception:
             report.status = "failed"
         db.commit()
+
+        if report.status == "parsed":
+            trigger_auto_analyze(report.id)
     finally:
         db.close()

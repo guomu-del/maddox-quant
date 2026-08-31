@@ -1,3 +1,4 @@
+import type { AnalyzeStartResponse, AnalysisJob, AnalysisResult } from "@/types/analysis";
 import type { Report, ReportListResponse } from "@/types/report";
 
 function getApiBase(): string {
@@ -60,4 +61,32 @@ export async function importReport(formData: FormData): Promise<Report> {
 
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<Report>;
+}
+
+export async function fetchAnalysis(reportId: number): Promise<AnalysisResult | null> {
+  const res = await fetch(`${getApiBase()}/api/reports/${reportId}/analysis`, {
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<AnalysisResult>;
+}
+
+export async function startAnalysis(reportId: number): Promise<AnalyzeStartResponse> {
+  const res = await fetch(`${getApiBase()}/api/reports/${reportId}/analyze`, {
+    method: "POST",
+  });
+  if (res.status === 503) {
+    throw new Error("LLM API 未配置，请在环境变量中设置 LLM_API_KEY");
+  }
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<AnalyzeStartResponse>;
+}
+
+export async function fetchAnalysisJob(jobId: number): Promise<AnalysisJob> {
+  const res = await fetch(`${getApiBase()}/api/analysis/jobs/${jobId}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<AnalysisJob>;
 }

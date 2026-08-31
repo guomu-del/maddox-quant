@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { AnalysisPanel } from "@/components/reports/AnalysisPanel";
 import { fetchReport, getReportFileUrl } from "@/lib/reports-api";
 import type { Report } from "@/types/report";
 
@@ -91,9 +92,7 @@ export function ReportDetailPanel({ reportId }: { reportId: number }) {
             {report.full_text || report.summary || "暂无文本内容（可能仍在解析中）"}
           </div>
         )}
-        {tab === "analysis" && (
-          <p className="py-8 text-center text-zinc-500">Phase 2 将实现 AI 结构化分析</p>
-        )}
+        {tab === "analysis" && <AnalysisPanel report={report} />}
       </div>
     </div>
   );
