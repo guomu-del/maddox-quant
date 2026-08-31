@@ -12,6 +12,7 @@ from app.models import (  # noqa: F401
     CollectSource,
     Event,
     Notification,
+    ReferenceItem,
     Report,
     Watchlist,
 )

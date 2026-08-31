@@ -34,7 +34,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/maddox_quant
         working-directory: backend
-        run: PYTHONPATH=. pytest tests/ -v
+        run: |
+          PYTHONPATH=. alembic upgrade head
+          PYTHONPATH=. pytest tests/ -v
 
   frontend:
     runs-on: ubuntu-latest

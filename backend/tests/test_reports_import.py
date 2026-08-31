@@ -30,7 +30,8 @@ def test_import_duplicate_returns_409(client, sample_pdf_bytes):
         files={"file": ("report.pdf", sample_pdf_bytes, "application/pdf")},
     )
     assert second.status_code == 409
-    body = second.json()["detail"]
+    body = second.json()
+    assert body["code"] == "duplicate_report"
     assert body["existing_report_id"] == first.json()["id"]
 
 

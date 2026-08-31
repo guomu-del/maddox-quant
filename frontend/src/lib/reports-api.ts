@@ -1,3 +1,4 @@
+import { parseApiError, parseApiErrorBody } from "@/lib/api-error";
 import type { AnalyzeStartResponse, AnalysisJob, AnalysisResult } from "@/types/analysis";
 import type { Report, ReportListResponse } from "@/types/report";
 
@@ -29,13 +30,13 @@ export async function fetchReports(params: {
   const res = await fetch(`${getApiBase()}/api/reports?${search.toString()}`, {
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<ReportListResponse>;
 }
 
 export async function fetchReport(id: number): Promise<Report> {
   const res = await fetch(`${getApiBase()}/api/reports/${id}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<Report>;
 }
 
@@ -50,16 +51,15 @@ export async function importReport(formData: FormData): Promise<Report> {
   });
 
   if (res.status === 409) {
-    const body = await res.json();
-    const existingId = body.detail?.existing_report_id;
+    const body = await parseApiErrorBody(res);
+    const detailObj = typeof body.detail === "object" ? body.detail : undefined;
+    const existingId = body.existing_report_id ?? detailObj?.existing_report_id;
     throw new Error(
-      existingId
-        ? `该 PDF 已导入（研报 ID: ${existingId}）`
-        : "该 PDF 已存在",
+      existingId ? `该 PDF 已导入（研报 ID: ${existingId}）` : body.message || "该 PDF 已存在",
     );
   }
 
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<Report>;
 }
 
@@ -68,7 +68,7 @@ export async function fetchAnalysis(reportId: number): Promise<AnalysisResult | 
     cache: "no-store",
   });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<AnalysisResult>;
 }
 
@@ -79,7 +79,7 @@ export async function startAnalysis(reportId: number): Promise<AnalyzeStartRespo
   if (res.status === 503) {
     throw new Error("LLM API 未配置，请在环境变量中设置 LLM_API_KEY");
   }
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<AnalyzeStartResponse>;
 }
 
@@ -87,6 +87,6 @@ export async function fetchAnalysisJob(jobId: number): Promise<AnalysisJob> {
   const res = await fetch(`${getApiBase()}/api/analysis/jobs/${jobId}`, {
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await parseApiError(res));
   return res.json() as Promise<AnalysisJob>;
 }

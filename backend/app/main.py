@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.admin_sources import router as admin_sources_router
@@ -11,6 +12,13 @@ from app.api.routes.reports import router as reports_router
 from app.api.routes.watchlist import router as watchlist_router
 from app.core.config import settings
 from app.core.database import check_database_connection
+from app.core.errors import (
+    AppError,
+    app_error_handler,
+    http_exception_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
 from app.tasks.event_detector import run_event_detection
 from app.tasks.scheduler import reload_collect_schedules, scheduler
 
@@ -25,7 +33,12 @@ async def lifespan(_app: FastAPI):
     scheduler.shutdown()
 
 
-app = FastAPI(title="Maddox Quant API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Maddox Quant API", version="1.0.0", lifespan=lifespan)
+
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,

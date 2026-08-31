@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.errors import AppError
 from app.models.report import Report
 from app.schemas.report import ReportListResponse, ReportResponse
 from app.services.pdf_parser import compute_file_hash, save_pdf
@@ -47,21 +48,28 @@ async def import_report(
     db: Session = Depends(get_db),
 ):
     if file.content_type not in {"application/pdf", "application/octet-stream"}:
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        raise AppError("仅支持 PDF 文件", code="invalid_file_type", status_code=400)
 
     content = await file.read()
     if not content:
-        raise HTTPException(status_code=400, detail="Empty file")
+        raise AppError("文件为空", code="empty_file", status_code=400)
+
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    if len(content) > max_bytes:
+        raise AppError(
+            f"文件超过 {settings.max_upload_mb}MB 限制",
+            code="file_too_large",
+            status_code=413,
+        )
 
     file_hash = compute_file_hash(content)
     existing = db.scalar(select(Report).where(Report.file_hash == file_hash))
     if existing:
-        raise HTTPException(
+        raise AppError(
+            "该 PDF 已导入",
+            code="duplicate_report",
             status_code=409,
-            detail={
-                "detail": "Report already exists",
-                "existing_report_id": existing.id,
-            },
+            extra={"existing_report_id": existing.id},
         )
 
     filename, _ = save_pdf(content, settings.storage_path)

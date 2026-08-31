@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     llm_model: str = "deepseek-chat"
     auto_analyze: bool = False
     collect_enabled: bool = False
+    max_upload_mb: int = 50
 
 
 settings = Settings()

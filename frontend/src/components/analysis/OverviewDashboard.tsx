@@ -18,6 +18,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { CardSkeleton } from "@/components/ui/LoadingSkeleton";
 import { fetchOverview } from "@/lib/analysis-api";
 import type { OverviewData } from "@/types/aggregation";
 
@@ -46,11 +47,28 @@ export function OverviewDashboard() {
   }, []);
 
   if (loading) {
-    return <div className="py-12 text-center text-zinc-500">加载看板数据...</div>;
+    return (
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    );
   }
 
   if (error || !data) {
     return <div className="py-12 text-center text-red-600">{error ?? "暂无数据"}</div>;
+  }
+
+  if (data.total_reports === 0) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">分析看板</h1>
+        <p className="mt-4 text-zinc-600">还没有研报数据，导入后将在此展示聚合分析。</p>
+        <a href="/reports/import" className="mt-6 inline-block text-sm font-medium text-zinc-900 underline">
+          导入第一篇研报
+        </a>
+      </div>
+    );
   }
 
   const sentimentData = Object.entries(data.sentiment_distribution).map(([key, value]) => ({

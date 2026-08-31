@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { fetchReports, importReport } from "@/lib/reports-api";
+import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
+import { fetchReports } from "@/lib/reports-api";
 import type { Report } from "@/types/report";
 
 const STATUS_LABEL: Record<Report["status"], string> = {
@@ -98,9 +99,7 @@ export function ReportListPanel() {
       </form>
 
       {loading ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center text-zinc-500">
-          加载中...
-        </div>
+        <ListSkeleton rows={6} />
       ) : error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
           {error}

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 
 import { importReport } from "@/lib/reports-api";
 
+const MAX_UPLOAD_MB = 50;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+
 export function ImportReportForm() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -15,6 +18,10 @@ export function ImportReportForm() {
     event.preventDefault();
     if (!file) {
       setError("请选择 PDF 文件");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(`文件超过 ${MAX_UPLOAD_MB}MB 限制，请压缩后重试`);
       return;
     }
 
@@ -85,6 +92,7 @@ export function ImportReportForm() {
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           className="block w-full text-sm text-zinc-600"
         />
+        <p className="mt-1 text-xs text-zinc-500">支持 PDF，最大 {MAX_UPLOAD_MB}MB</p>
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
