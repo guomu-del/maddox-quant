@@ -1,13 +1,30 @@
+from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.aggregation import router as aggregation_router
 from app.api.routes.analysis import router as analysis_router
+from app.api.routes.notifications import router as notifications_router
 from app.api.routes.reports import router as reports_router
+from app.api.routes.watchlist import router as watchlist_router
 from app.core.config import settings
 from app.core.database import check_database_connection
+from app.tasks.event_detector import run_event_detection
 
-app = FastAPI(title="Maddox Quant API", version="0.1.0")
+scheduler = BackgroundScheduler()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    scheduler.add_job(run_event_detection, "interval", minutes=5, id="event_detection")
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="Maddox Quant API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +37,8 @@ app.add_middleware(
 app.include_router(reports_router)
 app.include_router(analysis_router)
 app.include_router(aggregation_router)
+app.include_router(watchlist_router)
+app.include_router(notifications_router)
 
 
 @app.get("/health")

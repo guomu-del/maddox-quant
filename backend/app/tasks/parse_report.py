@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.report import Report
 from app.services.pdf_parser import extract_text_from_pdf
+from app.services.event_detector import detect_events_for_report
 from app.tasks.analyze_report import trigger_auto_analyze
 
 
@@ -30,5 +31,6 @@ def parse_report_task(report_id: int) -> None:
 
         if report.status == "parsed":
             trigger_auto_analyze(report.id)
+            detect_events_for_report(db, report.id)
     finally:
         db.close()

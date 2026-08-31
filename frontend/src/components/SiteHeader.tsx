@@ -1,10 +1,11 @@
 import Link from "next/link";
 
+import { NotificationBadge } from "@/components/layout/NotificationBadge";
+
 const navItems = [
   { href: "/reports", label: "研报" },
   { href: "/analysis", label: "分析看板" },
   { href: "/watchlist", label: "我的关注" },
-  { href: "/notifications", label: "通知中心" },
 ];
 
 export function SiteHeader() {
@@ -24,6 +25,7 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <NotificationBadge />
         </nav>
       </div>
     </header>

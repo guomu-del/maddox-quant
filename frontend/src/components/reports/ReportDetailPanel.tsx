@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AnalysisPanel } from "@/components/reports/AnalysisPanel";
+import { QuickWatchButtons } from "@/components/reports/QuickWatchButtons";
 import { fetchReport, getReportFileUrl } from "@/lib/reports-api";
 import type { Report } from "@/types/report";
 
@@ -63,6 +64,7 @@ export function ReportDetailPanel({ reportId }: { reportId: number }) {
           {report.industries?.length ? <span>行业：{report.industries.join("、")}</span> : null}
           {report.stocks?.length ? <span>个股：{report.stocks.join("、")}</span> : null}
         </div>
+        <QuickWatchButtons industries={report.industries ?? []} stocks={report.stocks ?? []} />
       </div>
 
       <div className="mt-4 flex gap-2 border-b border-zinc-200">
