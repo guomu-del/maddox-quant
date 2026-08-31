@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: maddox_quant
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8765:8765"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/maddox_quant
+      CORS_ORIGINS: http://localhost:4321
+      STORAGE_PATH: /app/storage/reports
+    volumes:
+      - ./storage:/app/storage
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4321:4321"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8765
+      INTERNAL_API_URL: http://backend:8765
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
