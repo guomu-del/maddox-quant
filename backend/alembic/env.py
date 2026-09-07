@@ -3,8 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.core.config import settings
-from app.core.database import Base
+from app.core.database import Base, resolve_database_url
 from app.models import (  # noqa: F401
     AnalysisJob,
     AnalysisResult,
@@ -22,7 +21,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", resolve_database_url(for_migrations=True).replace("%", "%%"))
 target_metadata = Base.metadata
 
 

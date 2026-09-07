@@ -158,7 +158,9 @@ server {
 |------|------|------|
 | `DATABASE_URL` | 是 | PostgreSQL 连接串 |
 | `STORAGE_PATH` | 是 | PDF 存储目录 |
-| `CORS_ORIGINS` | 否 | 前端地址，默认 `http://localhost:4321` |
+| `CORS_ORIGINS` | 否 | 前端地址（逗号分隔），默认含本地与 `https://maddox-quant.vercel.app` |
+| `NEXT_PUBLIC_API_URL` | 前端生产 | 后端 API 根地址，如 `https://maddox-quant-cdet.vercel.app` |
+| `INTERNAL_API_URL` | 前端 SSR | 服务端请求后端地址，生产可与上者相同 |
 | `LLM_API_KEY` | 分析功能 | DeepSeek 或兼容 API 密钥 |
 | `LLM_API_BASE` | 否 | 默认 `https://api.deepseek.com/v1` |
 | `LLM_MODEL` | 否 | 默认 `deepseek-chat` |

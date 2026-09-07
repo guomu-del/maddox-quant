@@ -3,7 +3,21 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
-engine = create_engine(settings.database_url)
+
+def resolve_database_url(*, for_migrations: bool = False) -> str:
+    if for_migrations and settings.database_url_unpooled:
+        return settings.database_url_unpooled
+    url = settings.database_url
+    if for_migrations and "-pooler." in url:
+        return url.replace("-pooler.", ".")
+    return url
+
+
+engine = create_engine(
+    resolve_database_url(),
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

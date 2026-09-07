@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    profiles: ["local-db"]
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -23,16 +24,11 @@ services:
       - "8765:8765"
     env_file: .env
     environment:
-      # DATABASE_URL comes from .env (Neon or local postgres)
-      CORS_ORIGINS: http://localhost:4321
+      CORS_ORIGINS: http://localhost:4321,https://maddox-quant.vercel.app
       STORAGE_PATH: /app/storage/reports
     volumes:
       - ./storage:/app/storage
       - ./backend:/app
-    # Local postgres is optional when DATABASE_URL points at Neon.
-    # depends_on:
-    #   postgres:
-    #     condition: service_healthy
 
   frontend:
     build: ./frontend

@@ -5,8 +5,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql://postgres:postgres@localhost:5432/maddox_quant"
+    database_url_unpooled: str = ""
     storage_path: str = "./storage/reports"
-    cors_origins: str = "http://localhost:4321"
+    cors_origins: str = (
+        "http://localhost:4321,https://maddox-quant.vercel.app"
+    )
     llm_api_key: str = ""
     llm_api_base: str = "https://api.deepseek.com/v1"
     llm_model: str = "deepseek-chat"

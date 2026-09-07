@@ -41,9 +41,17 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
+_cors_origins = [
+    origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()
+]
+# Always allow the production frontend even if CORS_ORIGINS was set for local only.
+_production_frontend = "https://maddox-quant.vercel.app"
+if _production_frontend not in _cors_origins:
+    _cors_origins.append(_production_frontend)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
