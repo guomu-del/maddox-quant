@@ -14,6 +14,11 @@ export default async function Home() {
 
   const modules = [
     {
+      title: "行情",
+      description: "大 A 指数、板块与个股报价",
+      href: "/market",
+    },
+    {
       title: "研报库",
       description: "导入、搜索与浏览行业研报",
       href: "/reports",

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.report import Report
-from app.services.pdf_parser import extract_text_from_pdf
+from app.services.pdf_parser import extract_pdf_content
 from app.services.event_detector import detect_events_for_report
 from app.tasks.analyze_report import trigger_auto_analyze
 
@@ -20,9 +20,10 @@ def parse_report_task(report_id: int) -> None:
         file_path = Path(settings.storage_path) / report.file_path
         try:
             content = file_path.read_bytes()
-            full_text = extract_text_from_pdf(content)
+            full_text, tables = extract_pdf_content(content)
             report.full_text = full_text
-            report.status = "parsed" if full_text else "failed"
+            report.tables = tables or None
+            report.status = "parsed" if full_text or tables else "failed"
             if not report.summary and full_text:
                 report.summary = full_text[:200]
         except Exception:

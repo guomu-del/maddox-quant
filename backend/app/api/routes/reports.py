@@ -20,7 +20,7 @@ from app.core.database import get_db
 from app.core.errors import AppError
 from app.models.report import Report
 from app.schemas.report import ReportListResponse, ReportResponse
-from app.services.pdf_parser import compute_file_hash, save_pdf
+from app.services.pdf_parser import compute_file_hash, extract_pdf_content, save_pdf
 from app.tasks.parse_report import parse_report_task
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -154,6 +154,16 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
     report = db.get(Report, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    if report.tables is None and report.file_path:
+        file_path = Path(settings.storage_path) / report.file_path
+        if file_path.exists():
+            try:
+                _, tables = extract_pdf_content(file_path.read_bytes())
+                report.tables = tables or []
+                db.commit()
+                db.refresh(report)
+            except Exception:
+                pass
     return report
 
 
@@ -171,6 +181,8 @@ def get_report_file(report_id: int, db: Session = Depends(get_db)):
         path=file_path,
         media_type="application/pdf",
         filename=file_path.name,
+        content_disposition_type="inline",
+        headers={"X-Content-Type-Options": "nosniff"},
     )
 
 

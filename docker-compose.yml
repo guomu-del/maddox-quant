@@ -23,15 +23,16 @@ services:
       - "8765:8765"
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/maddox_quant
+      # DATABASE_URL comes from .env (Neon or local postgres)
       CORS_ORIGINS: http://localhost:4321
       STORAGE_PATH: /app/storage/reports
     volumes:
       - ./storage:/app/storage
       - ./backend:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # Local postgres is optional when DATABASE_URL points at Neon.
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
 
   frontend:
     build: ./frontend

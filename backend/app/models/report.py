@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, String, Text, func
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,6 +24,7 @@ class Report(Base):
     stocks: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     summary: Mapped[str | None] = mapped_column(Text)
     full_text: Mapped[str | None] = mapped_column(Text)
+    tables: Mapped[list | None] = mapped_column(JSONB)
     file_path: Mapped[str | None] = mapped_column(String(500))
     file_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(String))

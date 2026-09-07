@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.admin_sources import router as admin_sources_router
 from app.api.routes.aggregation import router as aggregation_router
 from app.api.routes.analysis import router as analysis_router
+from app.api.routes.market import router as market_router
 from app.api.routes.notifications import router as notifications_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.watchlist import router as watchlist_router
@@ -49,6 +50,7 @@ app.add_middleware(
 )
 
 app.include_router(reports_router)
+app.include_router(market_router)
 app.include_router(analysis_router)
 app.include_router(aggregation_router)
 app.include_router(watchlist_router)

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     auto_analyze: bool = False
     collect_enabled: bool = False
     max_upload_mb: int = 50
+    market_cache_ttl_seconds: int = 90
+    market_akshare_timeout_seconds: int = 75
 
 
 settings = Settings()

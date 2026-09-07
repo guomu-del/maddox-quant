@@ -60,6 +60,39 @@ def test_get_report_detail(client, sample_pdf_bytes):
     assert response.json()["title"] == "详情测试报告"
 
 
+def test_get_report_detail_includes_extracted_tables(client):
+    import io
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    table = Table(
+        [
+            ["Metric", "2023", "2024"],
+            ["Revenue", "100", "120"],
+        ]
+    )
+    table.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.black)]))
+    doc.build([table])
+    pdf_bytes = buffer.getvalue()
+
+    created = client.post(
+        "/api/reports/import",
+        data={"title": "表格研报"},
+        files={"file": ("table.pdf", pdf_bytes, "application/pdf")},
+    ).json()
+
+    response = client.get(f"/api/reports/{created['id']}")
+    assert response.status_code == 200
+    tables = response.json()["tables"]
+    assert tables
+    assert tables[0]["page"] == 1
+    assert any("100" in "".join(row) for row in tables[0]["rows"])
+
+
 def test_search_reports_by_keyword(client, sample_pdf_bytes):
     client.post(
         "/api/reports/import",

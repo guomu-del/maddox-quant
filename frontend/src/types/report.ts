@@ -1,3 +1,8 @@
+export interface ReportTable {
+  page: number;
+  rows: string[][];
+}
+
 export interface Report {
   id: number;
   title: string;
@@ -9,6 +14,7 @@ export interface Report {
   stocks?: string[] | null;
   summary?: string | null;
   full_text?: string | null;
+  tables?: ReportTable[] | null;
   file_path?: string | null;
   file_hash?: string | null;
   tags?: string[] | null;

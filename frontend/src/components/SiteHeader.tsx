@@ -3,6 +3,7 @@ import Link from "next/link";
 import { NotificationBadge } from "@/components/layout/NotificationBadge";
 
 const navItems = [
+  { href: "/market", label: "行情" },
   { href: "/reports", label: "研报" },
   { href: "/analysis", label: "分析看板" },
   { href: "/watchlist", label: "我的关注" },

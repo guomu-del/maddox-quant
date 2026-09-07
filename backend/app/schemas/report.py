@@ -28,6 +28,7 @@ class ReportResponse(BaseModel):
     stocks: list[str] | None = None
     summary: str | None = None
     full_text: str | None = None
+    tables: list | None = None
     file_path: str | None = None
     file_hash: str | None = None
     tags: list[str] | None = None
