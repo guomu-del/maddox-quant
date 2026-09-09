@@ -40,3 +40,18 @@ def test_market_source_error_without_cache(client, monkeypatch):
     response = client.get("/api/market/stocks")
     assert response.status_code == 502
     assert response.json()["code"] == "market_source_error"
+
+
+def test_market_stock_quote_and_kline(client, monkeypatch):
+    market_service.reset_market_cache_for_tests(TtlCache(ttl_seconds=30))
+    monkeypatch.setattr(market_service, "_provider", FakeProvider())
+    monkeypatch.setattr(market_service, "_kline_cache", TtlCache(ttl_seconds=30))
+    quote = client.get("/api/market/stocks/600519")
+    assert quote.status_code == 200
+    assert quote.json()["code"] == "600519"
+    kline = client.get("/api/market/stocks/600519/kline", params={"limit": 10})
+    assert kline.status_code == 200
+    assert len(kline.json()["items"]) == 2
+    bad = client.get("/api/market/stocks/12")
+    assert bad.status_code == 400
+    assert bad.json()["code"] == "invalid_stock_code"

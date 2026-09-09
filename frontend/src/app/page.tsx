@@ -19,6 +19,11 @@ export default async function Home() {
       href: "/market",
     },
     {
+      title: "量化",
+      description: "仿真交易、日 K 与 CTA 回测",
+      href: "/quant",
+    },
+    {
       title: "研报库",
       description: "导入、搜索与浏览行业研报",
       href: "/reports",

@@ -9,6 +9,8 @@ from app.api.routes.aggregation import router as aggregation_router
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.market import router as market_router
 from app.api.routes.notifications import router as notifications_router
+from app.api.routes.paper import router as paper_router
+from app.api.routes.quant import router as quant_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.watchlist import router as watchlist_router
 from app.core.config import settings
@@ -64,6 +66,8 @@ app.include_router(aggregation_router)
 app.include_router(watchlist_router)
 app.include_router(notifications_router)
 app.include_router(admin_sources_router)
+app.include_router(paper_router)
+app.include_router(quant_router)
 
 
 @app.get("/health")

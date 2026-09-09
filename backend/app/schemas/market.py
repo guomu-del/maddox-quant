@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -37,6 +37,23 @@ class StockQuote(BaseModel):
     amount: float | None = None
     turnover: float | None = None
     pe: float | None = None
+
+
+class KlineBar(BaseModel):
+    date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float | None = None
+    amount: float | None = None
+
+
+class KlineResponse(BaseModel):
+    code: str
+    items: list[KlineBar]
+    as_of: datetime
+    stale: bool
 
 
 class StockListResponse(BaseModel):

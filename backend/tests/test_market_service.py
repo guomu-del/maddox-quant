@@ -1,8 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
+from app.core.errors import AppError
 from app.core.ttl_cache import TtlCache
-from app.schemas.market import BoardQuote, IndexQuote, StockQuote
+from app.schemas.market import BoardQuote, IndexQuote, KlineBar, StockQuote
 from app.services import market_service
 from app.services.market_service import is_trading_now
 
@@ -56,6 +59,13 @@ class FakeProvider:
                 pe=20,
             ),
         ]
+
+    def fetch_daily_bars(self, code: str, *, start=None, end=None, limit: int = 250):
+        bars = [
+            KlineBar(date=date(2026, 1, 5), open=10, high=11, low=9.5, close=10.5, volume=1000, amount=10500),
+            KlineBar(date=date(2026, 1, 6), open=10.5, high=12, low=10.4, close=11.8, volume=1200, amount=14000),
+        ]
+        return bars[:limit]
 
     def fetch_industry_boards(self) -> list[BoardQuote]:
         return [
@@ -135,3 +145,48 @@ def test_is_trading_weekday_window():
     assert is_trading_now(morning) is True
     assert is_trading_now(night) is False
     assert is_trading_now(sunday) is False
+
+
+def test_get_stock_from_snapshot():
+    quote = market_service.get_stock("600519", provider=FakeProvider())
+    assert quote.code == "600519"
+    assert quote.name == "贵州茅台"
+
+
+def test_get_stock_rejects_bad_code():
+    try:
+        market_service.get_stock("abc", provider=FakeProvider())
+        raise AssertionError("expected AppError")
+    except AppError as exc:
+        assert exc.status_code == 400
+        assert exc.code == "invalid_stock_code"
+
+
+def test_get_kline_returns_bars():
+    page = market_service.get_kline("600519", limit=10, provider=FakeProvider())
+    assert page.code == "600519"
+    assert len(page.items) == 2
+    assert page.items[0].open == 10
+
+
+def test_get_kline_empty_source_raises_and_is_not_cached():
+    class EmptyProvider(FakeProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.kline_calls = 0
+
+        def fetch_daily_bars(
+            self, code: str, *, start=None, end=None, limit: int = 250
+        ):
+            self.kline_calls += 1
+            return []
+
+    provider = EmptyProvider()
+
+    for _ in range(2):
+        with pytest.raises(AppError) as exc_info:
+            market_service.get_kline("600519", provider=provider)
+        assert exc_info.value.status_code == 502
+        assert exc_info.value.code == "market_source_error"
+
+    assert provider.kline_calls == 2

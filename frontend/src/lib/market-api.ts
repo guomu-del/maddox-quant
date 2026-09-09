@@ -1,8 +1,10 @@
 import { parseApiError } from "@/lib/api-error";
 import type {
   BoardListResponse,
+  KlineResponse,
   MarketOverview,
   StockListResponse,
+  StockQuote,
 } from "@/types/market";
 
 function getApiBase(): string {
@@ -61,4 +63,14 @@ export async function fetchMarketStocks(params: {
 
 export async function fetchMarketBoards(): Promise<BoardListResponse> {
   return marketFetch<BoardListResponse>("/api/market/boards?type=industry");
+}
+
+export async function fetchStockQuote(code: string): Promise<StockQuote> {
+  return marketFetch<StockQuote>(`/api/market/stocks/${encodeURIComponent(code)}`);
+}
+
+export async function fetchStockKline(code: string, limit = 250): Promise<KlineResponse> {
+  return marketFetch<KlineResponse>(
+    `/api/market/stocks/${encodeURIComponent(code)}/kline?limit=${limit}`,
+  );
 }

@@ -31,7 +31,11 @@ services:
       - ./backend:/app
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8765
+        INTERNAL_API_URL: http://backend:8765
     restart: unless-stopped
     ports:
       - "4321:4321"

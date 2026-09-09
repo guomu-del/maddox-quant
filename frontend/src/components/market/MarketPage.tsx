@@ -244,7 +244,7 @@ export function MarketPage() {
               {(stocks?.items ?? []).map((item) => (
                 <tr key={item.code} className="border-t border-zinc-100">
                   <td className="px-3 py-2 font-medium">
-                    <Link href={`/reports?q=${encodeURIComponent(item.code)}`} className="hover:underline">
+                    <Link href={`/quant?code=${encodeURIComponent(item.code)}`} className="hover:underline">
                       {item.code}
                     </Link>
                   </td>

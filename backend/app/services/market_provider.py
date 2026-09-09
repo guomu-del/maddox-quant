@@ -5,12 +5,13 @@ import threading
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date as date_cls
 from urllib.parse import urlparse, urlunparse
 
 import requests
 
 from app.core.config import settings
-from app.schemas.market import BoardQuote, IndexQuote, StockQuote
+from app.schemas.market import BoardQuote, IndexQuote, KlineBar, StockQuote
 
 CORE_INDEX_CODES = ("000001", "399001", "399006", "000300")
 MIN_STOCK_ROWS = 2000
@@ -187,6 +188,33 @@ class AkshareMarketProvider:
             fallback = []
         return fallback or rows
 
+    def fetch_daily_bars(self, code: str, *, start=None, end=None, limit: int = 250):
+        import akshare as ak
+
+        patch_akshare_http()
+        start_s = start.strftime("%Y%m%d") if start else "19700101"
+        end_s = end.strftime("%Y%m%d") if end else "20991231"
+        frame = None
+        try:
+            frame = ak.stock_zh_a_hist(
+                symbol=code, period="daily", start_date=start_s, end_date=end_s, adjust="qfq"
+            )
+        except Exception:
+            frame = None
+        if frame is None or getattr(frame, "empty", True):
+            try:
+                frame = ak.stock_zh_a_daily(symbol=_daily_symbol(code), adjust="qfq")
+            except Exception:
+                frame = None
+        bars = _map_kline_frame(frame)
+        if start:
+            bars = [b for b in bars if b.date >= start]
+        if end:
+            bars = [b for b in bars if b.date <= end]
+        if limit and len(bars) > limit:
+            bars = bars[-limit:]
+        return bars
+
     def fetch_industry_boards(self) -> list[BoardQuote]:
         import akshare as ak
 
@@ -247,6 +275,43 @@ def _map_stock_row(row: Mapping[str, object]) -> StockQuote:
         turnover=_to_float(_col(row, "换手率", "turnover")),
         pe=_to_float(_col(row, "市盈率-动态", "市盈率", "pe")),
     )
+
+
+def _daily_symbol(code: str) -> str:
+    if code.startswith(("6", "9")):
+        return f"sh{code}"
+    if code.startswith(("8", "4")):
+        return f"bj{code}"
+    return f"sz{code}"
+
+
+def _map_kline_frame(frame: object) -> list[KlineBar]:
+    if frame is None or getattr(frame, "empty", True):
+        return []
+    items: list[KlineBar] = []
+    for _, row in frame.iterrows():
+        raw = row.to_dict()
+        day = _col(raw, "日期", "date")
+        if day is None:
+            continue
+        if hasattr(day, "date"):
+            day = day.date()
+        elif not isinstance(day, date_cls):
+            text = str(day)[:10]
+            day = date_cls.fromisoformat(text.replace("/", "-"))
+        items.append(
+            KlineBar(
+                date=day,
+                open=float(_to_float(_col(raw, "开盘", "open")) or 0),
+                high=float(_to_float(_col(raw, "最高", "high")) or 0),
+                low=float(_to_float(_col(raw, "最低", "low")) or 0),
+                close=float(_to_float(_col(raw, "收盘", "close")) or 0),
+                volume=_to_float(_col(raw, "成交量", "volume")),
+                amount=_to_float(_col(raw, "成交额", "amount")),
+            )
+        )
+    items.sort(key=lambda b: b.date)
+    return items
 
 
 def _map_board_row(row: Mapping[str, object]) -> BoardQuote:

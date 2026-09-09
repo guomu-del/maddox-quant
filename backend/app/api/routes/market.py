@@ -1,6 +1,14 @@
+from datetime import date
+
 from fastapi import APIRouter, Query
 
-from app.schemas.market import BoardListResponse, MarketOverviewResponse, StockListResponse
+from app.schemas.market import (
+    BoardListResponse,
+    KlineResponse,
+    MarketOverviewResponse,
+    StockListResponse,
+    StockQuote,
+)
 from app.services import market_service
 
 router = APIRouter(prefix="/api/market", tags=["market"])
@@ -20,6 +28,21 @@ def market_stocks(
     page_size: int = Query(50, ge=1, le=100),
 ):
     return market_service.get_stocks(q=q, sort=sort, order=order, page=page, page_size=page_size)
+
+
+@router.get("/stocks/{code}/kline", response_model=KlineResponse)
+def market_stock_kline(
+    code: str,
+    limit: int = Query(250, ge=1, le=800),
+    start: date | None = None,
+    end: date | None = None,
+):
+    return market_service.get_kline(code, limit=limit, start=start, end=end)
+
+
+@router.get("/stocks/{code}", response_model=StockQuote)
+def market_stock_quote(code: str):
+    return market_service.get_stock(code)
 
 
 @router.get("/boards", response_model=BoardListResponse)

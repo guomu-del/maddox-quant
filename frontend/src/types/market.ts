@@ -34,6 +34,23 @@ export interface StockQuote {
   pe: number | null;
 }
 
+export interface KlineBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+  amount: number | null;
+}
+
+export interface KlineResponse {
+  code: string;
+  items: KlineBar[];
+  as_of: string;
+  stale: boolean;
+}
+
 export interface StockListResponse {
   items: StockQuote[];
   total: number;

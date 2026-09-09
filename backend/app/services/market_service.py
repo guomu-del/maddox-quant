@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from typing import Protocol, TypeVar
 from zoneinfo import ZoneInfo
 
@@ -13,6 +14,8 @@ from app.schemas.market import (
     BoardListResponse,
     BoardQuote,
     IndexQuote,
+    KlineBar,
+    KlineResponse,
     MarketOverviewResponse,
     MarketStats,
     StockListResponse,
@@ -32,6 +35,7 @@ SORT_FIELDS = {
     "turnover": lambda item: item.turnover,
     "code": lambda item: item.code,
 }
+CODE_RE = re.compile(r"^\d{6}$")
 
 T = TypeVar("T")
 
@@ -39,10 +43,14 @@ T = TypeVar("T")
 class MarketSource(Protocol):
     def fetch_index_quotes(self) -> list[IndexQuote]: ...
     def fetch_stock_snapshots(self) -> list[StockQuote]: ...
+    def fetch_daily_bars(
+        self, code: str, *, start: date | None, end: date | None, limit: int
+    ) -> list[KlineBar]: ...
     def fetch_industry_boards(self) -> list[BoardQuote]: ...
 
 
 _cache = TtlCache(ttl_seconds=settings.market_cache_ttl_seconds)
+_kline_cache = TtlCache(ttl_seconds=settings.market_kline_ttl_seconds)
 _provider: MarketSource = AkshareMarketProvider()
 
 
@@ -120,6 +128,55 @@ def get_stocks(
     )
 
 
+def _require_code(code: str) -> str:
+    text = (code or "").strip()
+    if not CODE_RE.match(text):
+        raise AppError("股票代码须为6位数字", code="invalid_stock_code", status_code=400)
+    return text
+
+
+def get_stock(code: str, provider: MarketSource | None = None) -> StockQuote:
+    source = provider or _provider
+    code = _require_code(code)
+    stocks, _ = _load(CACHE_STOCKS, source.fetch_stock_snapshots)
+    for item in stocks:
+        if item.code == code:
+            return item
+    raise AppError("未找到该股票报价", code="stock_not_found", status_code=404)
+
+
+def get_kline(
+    code: str,
+    *,
+    limit: int = 250,
+    start: date | None = None,
+    end: date | None = None,
+    provider: MarketSource | None = None,
+) -> KlineResponse:
+    source = provider or _provider
+    code = _require_code(code)
+    key = f"kline:{code}:daily:{start}:{end}:{limit}"
+
+    def loader():
+        items = source.fetch_daily_bars(code, start=start, end=end, limit=limit)
+        if not items:
+            raise AppError(
+                "行情源暂时不可用",
+                code="market_source_error",
+                status_code=502,
+            )
+        return items
+
+    try:
+        items, stale = _kline_cache.get_or_load(key, loader)
+    except AppError:
+        raise
+    except Exception as exc:
+        logger.exception("kline load failed for %s", code)
+        raise AppError("行情源暂时不可用", code="market_source_error", status_code=502) from exc
+    return KlineResponse(code=code, items=items, as_of=datetime.now(SHANGHAI), stale=stale)
+
+
 def get_boards(provider: MarketSource | None = None) -> BoardListResponse:
     source = provider or _provider
     boards, stale = _load(CACHE_BOARDS, source.fetch_industry_boards)
@@ -166,5 +223,6 @@ def _stats(stocks: list[StockQuote]) -> MarketStats:
 
 
 def reset_market_cache_for_tests(cache: TtlCache | None = None) -> None:
-    global _cache
+    global _cache, _kline_cache
     _cache = cache or TtlCache(ttl_seconds=settings.market_cache_ttl_seconds)
+    _kline_cache = cache or TtlCache(ttl_seconds=settings.market_kline_ttl_seconds)
