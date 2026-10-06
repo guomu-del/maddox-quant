@@ -9,6 +9,7 @@ from app.services.pdf_parser import (
     compute_file_hash,
     extract_pdf_content,
     extract_text_from_pdf,
+    persist_pdf,
     save_pdf,
 )
 
@@ -51,6 +52,28 @@ def test_save_pdf_writes_file(tmp_path):
     content = b"pdf-content"
     filename, file_hash = save_pdf(content, str(tmp_path))
     assert filename == f"{hashlib.sha256(content).hexdigest()}.pdf"
+    assert (tmp_path / filename).read_bytes() == content
+    assert file_hash == hashlib.sha256(content).hexdigest()
+
+
+def test_persist_pdf_keeps_bytes_when_disk_is_read_only(tmp_path, monkeypatch):
+    content = b"%PDF-readonly"
+
+    def boom(self, data):
+        raise OSError("Read-only file system")
+
+    monkeypatch.setattr("pathlib.Path.write_bytes", boom)
+    filename, file_hash, stored = persist_pdf(content, str(tmp_path))
+    assert stored == content
+    assert filename == f"{file_hash}.pdf"
+    assert file_hash == hashlib.sha256(content).hexdigest()
+
+
+def test_persist_pdf_keeps_bytes_on_vercel(tmp_path, monkeypatch):
+    monkeypatch.setenv("VERCEL", "1")
+    content = b"%PDF-vercel"
+    filename, file_hash, stored = persist_pdf(content, str(tmp_path))
+    assert stored == content
     assert (tmp_path / filename).read_bytes() == content
     assert file_hash == hashlib.sha256(content).hexdigest()
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { importReport } from "@/lib/reports-api";
 
-const MAX_UPLOAD_MB = 50;
+const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? 50);
 const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 
 export function ImportReportForm() {
@@ -36,7 +36,17 @@ export function ImportReportForm() {
       const report = await importReport(formData);
       router.push(`/reports/${report.id}`);
     } catch (err) {
-      if (err instanceof Error) {
+      const message = err instanceof Error ? err.message : "";
+      const networkFailure =
+        err instanceof TypeError ||
+        message === "Failed to fetch" ||
+        message === "Load failed" ||
+        message.includes("NetworkError");
+      if (networkFailure) {
+        setError(
+          `无法连接服务器或文件过大（托管上限约 ${MAX_UPLOAD_MB}MB）。请压缩 PDF 后重试。`,
+        );
+      } else if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("导入失败");

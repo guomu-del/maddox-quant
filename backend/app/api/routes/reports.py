@@ -1,5 +1,7 @@
 from datetime import date
+from io import BytesIO
 from pathlib import Path
+import os
 
 from fastapi import (
     APIRouter,
@@ -11,7 +13,7 @@ from fastapi import (
     Query,
     UploadFile,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
@@ -20,10 +22,18 @@ from app.core.database import get_db
 from app.core.errors import AppError
 from app.models.report import Report
 from app.schemas.report import ReportListResponse, ReportResponse
-from app.services.pdf_parser import compute_file_hash, extract_pdf_content, save_pdf
+from app.services.pdf_parser import compute_file_hash, extract_pdf_content, persist_pdf
 from app.tasks.parse_report import parse_report_task
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
+
+
+def _report_pdf_bytes(report: Report) -> bytes | None:
+    if report.file_path:
+        file_path = Path(settings.storage_path) / report.file_path
+        if file_path.exists():
+            return file_path.read_bytes()
+    return report.file_data
 
 
 def _parse_csv_field(value: str | None) -> list[str]:
@@ -54,10 +64,11 @@ async def import_report(
     if not content:
         raise AppError("文件为空", code="empty_file", status_code=400)
 
-    max_bytes = settings.max_upload_mb * 1024 * 1024
+    max_mb = min(settings.max_upload_mb, 4) if os.getenv("VERCEL") else settings.max_upload_mb
+    max_bytes = max_mb * 1024 * 1024
     if len(content) > max_bytes:
         raise AppError(
-            f"文件超过 {settings.max_upload_mb}MB 限制",
+            f"文件超过 {max_mb}MB 限制",
             code="file_too_large",
             status_code=413,
         )
@@ -72,7 +83,7 @@ async def import_report(
             extra={"existing_report_id": existing.id},
         )
 
-    filename, _ = save_pdf(content, settings.storage_path)
+    filename, file_hash, stored_bytes = persist_pdf(content, settings.storage_path)
     report = Report(
         title=title,
         source=source,
@@ -84,6 +95,7 @@ async def import_report(
         tags=_parse_csv_field(tags) or None,
         summary=summary,
         file_path=filename,
+        file_data=stored_bytes,
         file_hash=file_hash,
         status="pending",
     )
@@ -91,7 +103,10 @@ async def import_report(
     db.commit()
     db.refresh(report)
 
-    background_tasks.add_task(parse_report_task, report.id)
+    if stored_bytes is not None or os.getenv("VERCEL"):
+        parse_report_task(report.id)
+    else:
+        background_tasks.add_task(parse_report_task, report.id)
     return report
 
 
@@ -154,11 +169,11 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
     report = db.get(Report, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    if report.tables is None and report.file_path:
-        file_path = Path(settings.storage_path) / report.file_path
-        if file_path.exists():
+    if report.tables is None:
+        pdf_bytes = _report_pdf_bytes(report)
+        if pdf_bytes:
             try:
-                _, tables = extract_pdf_content(file_path.read_bytes())
+                _, tables = extract_pdf_content(pdf_bytes)
                 report.tables = tables or []
                 db.commit()
                 db.refresh(report)
@@ -174,16 +189,24 @@ def get_report_file(report_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Report file not found")
 
     file_path = Path(settings.storage_path) / report.file_path
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Report file missing on disk")
-
-    return FileResponse(
-        path=file_path,
-        media_type="application/pdf",
-        filename=file_path.name,
-        content_disposition_type="inline",
-        headers={"X-Content-Type-Options": "nosniff"},
-    )
+    if file_path.exists():
+        return FileResponse(
+            path=file_path,
+            media_type="application/pdf",
+            filename=file_path.name,
+            content_disposition_type="inline",
+            headers={"X-Content-Type-Options": "nosniff"},
+        )
+    if report.file_data:
+        return StreamingResponse(
+            BytesIO(report.file_data),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{file_path.name}"',
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+    raise HTTPException(status_code=404, detail="Report file missing on disk")
 
 
 @router.delete("/{report_id}", status_code=204)

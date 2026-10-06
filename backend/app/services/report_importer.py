@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.report import Report
-from app.services.pdf_parser import compute_file_hash, save_pdf
+from app.services.pdf_parser import compute_file_hash, persist_pdf
 from app.tasks.parse_report import parse_report_task
 
 
@@ -34,7 +34,7 @@ def import_report_from_pdf(
     if existing:
         return existing, False
 
-    filename, _ = save_pdf(content, settings.storage_path)
+    filename, file_hash, stored_bytes = persist_pdf(content, settings.storage_path)
     report = Report(
         title=title,
         source=source,
@@ -46,6 +46,7 @@ def import_report_from_pdf(
         tags=tags,
         summary=summary,
         file_path=filename,
+        file_data=stored_bytes,
         file_hash=file_hash,
         status="pending",
     )

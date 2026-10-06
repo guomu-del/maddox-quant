@@ -1,5 +1,6 @@
 import hashlib
 import io
+import os
 from pathlib import Path
 
 import pdfplumber
@@ -72,10 +73,29 @@ def extract_text_from_pdf(content: bytes) -> str:
 
 
 def save_pdf(content: bytes, storage_path: str) -> tuple[str, str]:
-    file_hash = compute_file_hash(content)
-    root = Path(storage_path)
-    root.mkdir(parents=True, exist_ok=True)
-    filename = f"{file_hash}.pdf"
-    dest = root / filename
-    dest.write_bytes(content)
+    filename, file_hash, stored = persist_pdf(content, storage_path)
+    if stored is not None:
+        raise OSError("Read-only file system")
     return filename, file_hash
+
+
+def persist_pdf(content: bytes, storage_path: str) -> tuple[str, str, bytes | None]:
+    """Write the PDF to disk when possible.
+
+    Vercel and other serverless hosts only allow writes under /tmp, which is
+    discarded after the request. If the disk is not writable, or we are on
+    Vercel, return the bytes so the caller can persist them in the database.
+    """
+    file_hash = compute_file_hash(content)
+    filename = f"{file_hash}.pdf"
+    stored: bytes | None = None
+    try:
+        root = Path(storage_path)
+        root.mkdir(parents=True, exist_ok=True)
+        dest = root / filename
+        dest.write_bytes(content)
+    except OSError:
+        stored = content
+    if os.getenv("VERCEL"):
+        stored = content
+    return filename, file_hash, stored

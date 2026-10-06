@@ -19,7 +19,14 @@ def parse_report_task(report_id: int) -> None:
 
         file_path = Path(settings.storage_path) / report.file_path
         try:
-            content = file_path.read_bytes()
+            if file_path.exists():
+                content = file_path.read_bytes()
+            elif report.file_data:
+                content = report.file_data
+            else:
+                report.status = "failed"
+                db.commit()
+                return
             full_text, tables = extract_pdf_content(content)
             report.full_text = full_text
             report.tables = tables or None
