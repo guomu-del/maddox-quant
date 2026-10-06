@@ -4,8 +4,6 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.core.config import settings
-
 logger = logging.getLogger(__name__)
 _PRODUCTION_FRONTEND = "https://maddox-quant.vercel.app"
 
@@ -39,17 +37,22 @@ def error_response(
 
 
 def _allowed_origins() -> set[str]:
+    from app.core.config import settings
+
     origins = {part.strip() for part in settings.cors_origins.split(",") if part.strip()}
     origins.add(_PRODUCTION_FRONTEND)
     return origins
 
 
 def attach_cors(response: JSONResponse, request: Request) -> JSONResponse:
-    origin = request.headers.get("origin")
-    if origin and origin in _allowed_origins():
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Vary"] = "Origin"
+    try:
+        origin = request.headers.get("origin")
+        if origin and origin in _allowed_origins():
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Vary"] = "Origin"
+    except Exception:
+        logger.exception("Failed to attach CORS headers")
     return response
 
 
@@ -98,7 +101,10 @@ async def validation_exception_handler(
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    try:
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    except Exception:
+        logger.exception("Unhandled error")
     return attach_cors(
         error_response(
             status_code=500,

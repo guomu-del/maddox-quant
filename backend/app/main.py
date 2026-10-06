@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+import logging
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -25,15 +27,36 @@ from app.core.errors import (
 from app.tasks.event_detector import run_event_detection
 from app.tasks.scheduler import reload_collect_schedules, scheduler
 
-scheduler.add_job(run_event_detection, "interval", minutes=5, id="event_detection")
+logger = logging.getLogger(__name__)
+
+scheduler.add_job(
+    run_event_detection,
+    "interval",
+    minutes=5,
+    id="event_detection",
+    replace_existing=True,
+)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    scheduler.start()
-    reload_collect_schedules()
-    yield
-    scheduler.shutdown()
+    # APScheduler uses background threads that crash Vercel serverless isolates.
+    started = False
+    if not os.getenv("VERCEL"):
+        try:
+            scheduler.start()
+            started = True
+            reload_collect_schedules()
+        except Exception:
+            logger.exception("Background scheduler failed to start")
+    try:
+        yield
+    finally:
+        if started:
+            try:
+                scheduler.shutdown(wait=False)
+            except Exception:
+                logger.exception("Background scheduler failed to stop")
 
 
 app = FastAPI(title="Maddox Quant API", version="1.0.0", lifespan=lifespan)
