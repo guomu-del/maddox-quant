@@ -24,38 +24,47 @@ from app.core.errors import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from app.tasks.event_detector import run_event_detection
-from app.tasks.scheduler import reload_collect_schedules, scheduler
 
 logger = logging.getLogger(__name__)
 
-if scheduler is not None:
-    scheduler.add_job(
-        run_event_detection,
-        "interval",
-        minutes=5,
-        id="event_detection",
-        replace_existing=True,
-    )
+_serverless = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+if not _serverless:
+    from app.tasks.event_detector import run_event_detection
+    from app.tasks.scheduler import reload_collect_schedules, scheduler
+
+    if scheduler is not None:
+        scheduler.add_job(
+            run_event_detection,
+            "interval",
+            minutes=5,
+            id="event_detection",
+            replace_existing=True,
+        )
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # APScheduler uses background threads that crash Vercel serverless isolates.
     started = False
-    if scheduler is not None and not os.getenv("VERCEL"):
-        try:
-            scheduler.start()
-            started = True
-            reload_collect_schedules()
-        except Exception:
-            logger.exception("Background scheduler failed to start")
+    if not _serverless:
+        from app.tasks.scheduler import reload_collect_schedules, scheduler
+
+        if scheduler is not None:
+            try:
+                scheduler.start()
+                started = True
+                reload_collect_schedules()
+            except Exception:
+                logger.exception("Background scheduler failed to start")
     try:
         yield
     finally:
         if started:
+            from app.tasks.scheduler import scheduler as running_scheduler
+
             try:
-                scheduler.shutdown(wait=False)
+                if running_scheduler is not None:
+                    running_scheduler.shutdown(wait=False)
             except Exception:
                 logger.exception("Background scheduler failed to stop")
 

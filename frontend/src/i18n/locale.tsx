@@ -79,7 +79,7 @@ export function localizeError(locale: Locale, raw: string | null | undefined, fa
       : translate(locale, "error.duplicateReport");
   }
   if (raw === "Failed to fetch" || raw === "Load failed" || raw.includes("NetworkError")) {
-    return translate(locale, "error.network", { mb: 4 });
+    return translate(locale, "error.unreachable");
   }
   const statusMatch = raw.match(/请求失败 \((\d+)\)/) ?? raw.match(/Request failed \((\d+)\)/);
   if (statusMatch) {

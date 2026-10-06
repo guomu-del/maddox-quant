@@ -1,4 +1,3 @@
-from apscheduler.triggers.cron import CronTrigger
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session

@@ -61,6 +61,7 @@ export const zh = {
   "error.pdfMissing": "无法加载 PDF 文件",
   "error.importFailed": "导入失败",
   "error.network": "无法连接服务器或文件过大（托管上限约 {mb}MB）。请压缩 PDF 后重试。",
+  "error.unreachable": "无法连接服务器，请稍后重试",
   "error.choosePdf": "请选择 PDF 文件",
   "error.invalidStrategy": "未知回测策略",
   "error.fileOverLimit": "文件超过 {mb}MB 限制，请压缩后重试",
@@ -412,6 +413,7 @@ export const en: Record<keyof typeof zh, string> = {
   "error.importFailed": "Import failed",
   "error.network":
     "Could not reach the server, or the file is too large (hosting limit about {mb}MB). Compress the PDF and retry.",
+  "error.unreachable": "Could not reach the server. Please retry shortly.",
   "error.choosePdf": "Please choose a PDF file",
   "error.invalidStrategy": "Unknown backtest strategy",
   "error.fileOverLimit": "File exceeds the {mb}MB limit. Compress it and retry.",
