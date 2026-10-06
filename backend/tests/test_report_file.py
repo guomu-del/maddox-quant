@@ -26,6 +26,24 @@ def test_import_and_preview_when_disk_is_read_only(client, sample_pdf_bytes, mon
     assert response.content[:4] == b"%PDF"
 
 
+def test_preview_uses_db_bytes_when_disk_file_is_missing(client, sample_pdf_bytes, tmp_path):
+    created = client.post(
+        "/api/reports/import",
+        data={"title": "磁盘丢失仍可预览"},
+        files={"file": ("report.pdf", sample_pdf_bytes, "application/pdf")},
+    )
+    assert created.status_code == 201, created.text
+    report = created.json()
+    disk_file = tmp_path / report["file_path"]
+    assert disk_file.exists()
+    disk_file.unlink()
+
+    response = client.get(f"/api/reports/{report['id']}/file")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/pdf")
+    assert response.content[:4] == b"%PDF"
+
+
 def test_report_file_is_served_inline(client, sample_pdf_bytes):
     created = client.post(
         "/api/reports/import",

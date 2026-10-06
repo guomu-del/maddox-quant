@@ -103,7 +103,7 @@ async def import_report(
     db.commit()
     db.refresh(report)
 
-    if stored_bytes is not None or os.getenv("VERCEL"):
+    if os.getenv("VERCEL"):
         parse_report_task(report.id)
     else:
         background_tasks.add_task(parse_report_task, report.id)
@@ -185,25 +185,29 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
 @router.get("/{report_id}/file")
 def get_report_file(report_id: int, db: Session = Depends(get_db)):
     report = db.get(Report, report_id)
-    if not report or not report.file_path:
+    if not report:
         raise HTTPException(status_code=404, detail="Report file not found")
 
-    file_path = Path(settings.storage_path) / report.file_path
-    if file_path.exists():
-        return FileResponse(
-            path=file_path,
-            media_type="application/pdf",
-            filename=file_path.name,
-            content_disposition_type="inline",
-            headers={"X-Content-Type-Options": "nosniff"},
-        )
-    if report.file_data:
+    filename = Path(report.file_path).name if report.file_path else f"report-{report.id}.pdf"
+    if report.file_path:
+        file_path = Path(settings.storage_path) / report.file_path
+        if file_path.exists():
+            return FileResponse(
+                path=file_path,
+                media_type="application/pdf",
+                filename=file_path.name,
+                content_disposition_type="inline",
+                headers={"X-Content-Type-Options": "nosniff"},
+            )
+    pdf_bytes = report.file_data
+    if pdf_bytes:
         return StreamingResponse(
-            BytesIO(report.file_data),
+            BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'inline; filename="{file_path.name}"',
+                "Content-Disposition": f'inline; filename="{filename}"',
                 "X-Content-Type-Options": "nosniff",
+                "Content-Length": str(len(pdf_bytes)),
             },
         )
     raise HTTPException(status_code=404, detail="Report file missing on disk")
@@ -217,8 +221,11 @@ def delete_report(report_id: int, db: Session = Depends(get_db)):
 
     if report.file_path:
         file_path = Path(settings.storage_path) / report.file_path
-        if file_path.exists():
-            file_path.unlink()
+        try:
+            if file_path.exists():
+                file_path.unlink()
+        except OSError:
+            pass
 
     db.delete(report)
     db.commit()

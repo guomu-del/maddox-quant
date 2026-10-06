@@ -6,7 +6,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
 import { localizeError, useLocale } from "@/i18n/locale";
-import { fetchReports } from "@/lib/reports-api";
+import { fetchReports, deleteReport } from "@/lib/reports-api";
 import type { Report } from "@/types/report";
 
 export function ReportListPanel() {
@@ -20,6 +20,7 @@ export function ReportListPanel() {
   const [industry, setIndustry] = useState(searchParams.get("industry") ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const statusLabel: Record<Report["status"], string> = {
     pending: t("reports.statusPending"),
@@ -57,6 +58,20 @@ export function ReportListPanel() {
     if (q) params.set("q", q);
     if (industry) params.set("industry", industry);
     router.push(`/reports?${params.toString()}`);
+  }
+
+  async function handleDelete(report: Report) {
+    if (!window.confirm(t("reports.deleteConfirm"))) return;
+    setDeletingId(report.id);
+    setError(null);
+    try {
+      await deleteReport(report.id);
+      await loadReports();
+    } catch (err) {
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "reports.deleteFailed"));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / 20));
@@ -100,20 +115,22 @@ export function ReportListPanel() {
         </button>
       </form>
 
-      {loading ? (
-        <ListSkeleton rows={6} />
-      ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+      {error ? (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-sm text-red-700">
           {error}
         </div>
-      ) : reports.length === 0 ? (
+      ) : null}
+
+      {loading ? (
+        <ListSkeleton rows={6} />
+      ) : reports.length === 0 && !error ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center">
           <p className="text-zinc-600">{t("reports.empty")}</p>
           <Link href="/reports/import" className="mt-4 inline-block text-sm text-zinc-900 underline">
             {t("reports.importFirst")}
           </Link>
         </div>
-      ) : (
+      ) : reports.length === 0 ? null : (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <table className="min-w-full text-sm">
             <thead className="bg-zinc-50 text-left text-zinc-600">
@@ -123,6 +140,7 @@ export function ReportListPanel() {
                 <th className="px-4 py-3 font-medium">{t("reports.colSource")}</th>
                 <th className="px-4 py-3 font-medium">{t("reports.colDate")}</th>
                 <th className="px-4 py-3 font-medium">{t("reports.colStatus")}</th>
+                <th className="px-4 py-3 font-medium">{t("reports.colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -150,6 +168,24 @@ export function ReportListPanel() {
                     >
                       {statusLabel[report.status]}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/reports/${report.id}`}
+                        className="text-sm font-medium text-zinc-900 hover:underline"
+                      >
+                        {t("reports.view")}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(report)}
+                        disabled={deletingId === report.id}
+                        className="text-sm text-zinc-500 hover:text-red-600 disabled:opacity-40"
+                      >
+                        {t("reports.delete")}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

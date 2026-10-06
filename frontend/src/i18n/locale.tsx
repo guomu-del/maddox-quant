@@ -54,6 +54,8 @@ const ERROR_KEY_BY_TEXT: Record<string, MessageKey> = {
   "LLM API 未配置，请在环境变量中设置 LLM_API_KEY": "error.llmMissing",
   "Unable to load the PDF": "error.pdfMissing",
   "无法加载 PDF 文件": "error.pdfMissing",
+  "Report file missing on disk": "error.pdfMissing",
+  "Report file not found": "error.pdfMissing",
   "导入失败": "error.importFailed",
   "Import failed": "error.importFailed",
   "请选择 PDF 文件": "error.choosePdf",

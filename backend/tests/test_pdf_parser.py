@@ -56,6 +56,14 @@ def test_save_pdf_writes_file(tmp_path):
     assert file_hash == hashlib.sha256(content).hexdigest()
 
 
+def test_persist_pdf_keeps_bytes_when_disk_is_writable(tmp_path):
+    content = b"%PDF-writable"
+    filename, file_hash, stored = persist_pdf(content, str(tmp_path))
+    assert stored == content
+    assert (tmp_path / filename).read_bytes() == content
+    assert filename == f"{file_hash}.pdf"
+
+
 def test_persist_pdf_keeps_bytes_when_disk_is_read_only(tmp_path, monkeypatch):
     content = b"%PDF-readonly"
 

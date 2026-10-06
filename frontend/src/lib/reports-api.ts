@@ -63,6 +63,11 @@ export async function importReport(formData: FormData): Promise<Report> {
   return res.json() as Promise<Report>;
 }
 
+export async function deleteReport(id: number): Promise<void> {
+  const res = await fetch(`${getApiBase()}/api/reports/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await parseApiError(res));
+}
+
 export async function fetchAnalysis(reportId: number): Promise<AnalysisResult | null> {
   const res = await fetch(`${getApiBase()}/api/reports/${reportId}/analysis`, {
     cache: "no-store",

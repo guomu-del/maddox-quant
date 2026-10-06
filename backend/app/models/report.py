@@ -40,6 +40,8 @@ class Report(Base):
     )
 
     analysis_result: Mapped["AnalysisResult | None"] = relationship(
-        back_populates="report", uselist=False
+        back_populates="report", uselist=False, cascade="all, delete-orphan"
     )
-    analysis_jobs: Mapped[list["AnalysisJob"]] = relationship(back_populates="report")
+    analysis_jobs: Mapped[list["AnalysisJob"]] = relationship(
+        back_populates="report", cascade="all, delete-orphan"
+    )

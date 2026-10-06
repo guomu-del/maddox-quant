@@ -1,6 +1,5 @@
 import hashlib
 import io
-import os
 from pathlib import Path
 
 PAGE_BREAK = "\f"
@@ -73,29 +72,26 @@ def extract_text_from_pdf(content: bytes) -> str:
 
 
 def save_pdf(content: bytes, storage_path: str) -> tuple[str, str]:
-    filename, file_hash, stored = persist_pdf(content, storage_path)
-    if stored is not None:
+    filename, file_hash, _stored = persist_pdf(content, storage_path)
+    dest = Path(storage_path) / filename
+    if not dest.exists():
         raise OSError("Read-only file system")
     return filename, file_hash
 
 
-def persist_pdf(content: bytes, storage_path: str) -> tuple[str, str, bytes | None]:
-    """Write the PDF to disk when possible.
+def persist_pdf(content: bytes, storage_path: str) -> tuple[str, str, bytes]:
+    """Best-effort disk write; always return bytes for database persistence.
 
     Vercel and other serverless hosts only allow writes under /tmp, which is
-    discarded after the request. If the disk is not writable, or we are on
-    Vercel, return the bytes so the caller can persist them in the database.
+    discarded after the request. Preview and parse must not depend on a local
+    file existing later, so callers always store the returned bytes.
     """
     file_hash = compute_file_hash(content)
     filename = f"{file_hash}.pdf"
-    stored: bytes | None = None
     try:
         root = Path(storage_path)
         root.mkdir(parents=True, exist_ok=True)
-        dest = root / filename
-        dest.write_bytes(content)
+        (root / filename).write_bytes(content)
     except OSError:
-        stored = content
-    if os.getenv("VERCEL"):
-        stored = content
-    return filename, file_hash, stored
+        pass
+    return filename, file_hash, content

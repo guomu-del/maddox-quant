@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AnalysisPanel } from "@/components/reports/AnalysisPanel";
 import { QuickWatchButtons } from "@/components/reports/QuickWatchButtons";
 import { localizeError, useLocale } from "@/i18n/locale";
+import { parseApiError } from "@/lib/api-error";
 import { fetchReport, getReportFileUrl } from "@/lib/reports-api";
 import type { Report, ReportTable } from "@/types/report";
 
@@ -22,7 +23,7 @@ function PdfPreview({ reportId }: { reportId: number }) {
       try {
         const response = await fetch(getReportFileUrl(reportId));
         if (!response.ok) {
-          throw new Error(t("error.pdfMissing"));
+          throw new Error(await parseApiError(response));
         }
         const blob = await response.blob();
         const pdfBlob =
