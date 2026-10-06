@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 import logging
-import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -24,52 +23,46 @@ from app.core.errors import (
     unhandled_exception_handler,
     validation_exception_handler,
 )
+from app.core.runtime import scheduler_enabled
 
 logger = logging.getLogger(__name__)
-
-_serverless = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
-if not _serverless:
-    from app.tasks.event_detector import run_event_detection
-    from app.tasks.scheduler import reload_collect_schedules, scheduler
-
-    if scheduler is not None:
-        scheduler.add_job(
-            run_event_detection,
-            "interval",
-            minutes=5,
-            id="event_detection",
-            replace_existing=True,
-        )
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # APScheduler uses background threads that crash Vercel serverless isolates.
-    started = False
-    if not _serverless:
-        from app.tasks.scheduler import reload_collect_schedules, scheduler
+    from app.tasks.event_detector import run_event_detection
+    from app.tasks.scheduler import reload_collect_schedules, scheduler
 
-        if scheduler is not None:
-            try:
-                scheduler.start()
-                started = True
-                reload_collect_schedules()
-            except Exception:
-                logger.exception("Background scheduler failed to start")
+    started = False
+    if scheduler is not None:
+        try:
+            scheduler.add_job(
+                run_event_detection,
+                "interval",
+                minutes=5,
+                id="event_detection",
+                replace_existing=True,
+            )
+            scheduler.start()
+            started = True
+            reload_collect_schedules()
+        except Exception:
+            logger.exception("Background scheduler failed to start")
     try:
         yield
     finally:
-        if started:
-            from app.tasks.scheduler import scheduler as running_scheduler
-
+        if started and scheduler is not None:
             try:
-                if running_scheduler is not None:
-                    running_scheduler.shutdown(wait=False)
+                scheduler.shutdown(wait=False)
             except Exception:
                 logger.exception("Background scheduler failed to stop")
 
 
-app = FastAPI(title="Maddox Quant API", version="1.0.0", lifespan=lifespan)
+_app_kwargs: dict = {"title": "Maddox Quant API", "version": "1.0.0"}
+if scheduler_enabled():
+    _app_kwargs["lifespan"] = lifespan
+
+app = FastAPI(**_app_kwargs)
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
@@ -79,7 +72,6 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 _cors_origins = [
     origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()
 ]
-# Always allow the production frontend even if CORS_ORIGINS was set for local only.
 _production_frontend = "https://maddox-quant.vercel.app"
 if _production_frontend not in _cors_origins:
     _cors_origins.append(_production_frontend)
@@ -105,7 +97,11 @@ app.include_router(quant_router)
 
 @app.get("/health")
 def health():
-    db_ok = check_database_connection()
+    try:
+        db_ok = check_database_connection()
+    except Exception:
+        logger.exception("Health check could not reach the database")
+        db_ok = False
     return {
         "status": "ok" if db_ok else "degraded",
         "db": "connected" if db_ok else "error",

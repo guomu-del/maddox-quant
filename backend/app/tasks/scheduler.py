@@ -1,16 +1,14 @@
-import os
-
 from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.core.runtime import scheduler_enabled
 from app.models.collect_source import CollectSource
 from app.tasks.collect_sources import run_collect_source_task
 
-# Importing APScheduler (tzlocal/threads) crashes Vercel serverless isolates.
-_serverless = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+# APScheduler threads crash Vercel serverless isolates. Keep it opt-in.
 scheduler = None
-if not _serverless:
+if scheduler_enabled():
     from apscheduler.schedulers.background import BackgroundScheduler
 
     scheduler = BackgroundScheduler()

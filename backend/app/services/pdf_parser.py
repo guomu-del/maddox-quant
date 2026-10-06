@@ -3,8 +3,6 @@ import io
 import os
 from pathlib import Path
 
-import pdfplumber
-
 PAGE_BREAK = "\f"
 
 
@@ -47,6 +45,8 @@ def _char_outside_tables(bboxes: list[tuple[float, float, float, float]]):
 
 
 def extract_pdf_content(content: bytes) -> tuple[str, list[dict]]:
+    import pdfplumber
+
     page_texts: list[str] = []
     tables: list[dict] = []
 
