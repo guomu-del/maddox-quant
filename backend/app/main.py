@@ -29,20 +29,21 @@ from app.tasks.scheduler import reload_collect_schedules, scheduler
 
 logger = logging.getLogger(__name__)
 
-scheduler.add_job(
-    run_event_detection,
-    "interval",
-    minutes=5,
-    id="event_detection",
-    replace_existing=True,
-)
+if scheduler is not None:
+    scheduler.add_job(
+        run_event_detection,
+        "interval",
+        minutes=5,
+        id="event_detection",
+        replace_existing=True,
+    )
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # APScheduler uses background threads that crash Vercel serverless isolates.
     started = False
-    if not os.getenv("VERCEL"):
+    if scheduler is not None and not os.getenv("VERCEL"):
         try:
             scheduler.start()
             started = True

@@ -1,3 +1,5 @@
+import os
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
@@ -7,11 +9,12 @@ from app.core.database import SessionLocal
 from app.models.collect_source import CollectSource
 from app.tasks.collect_sources import run_collect_source_task
 
-scheduler = BackgroundScheduler()
+# Instantiating APScheduler at import crashes Vercel serverless isolates.
+scheduler = None if os.getenv("VERCEL") else BackgroundScheduler()
 
 
 def reload_collect_schedules() -> None:
-    if not settings.collect_enabled:
+    if scheduler is None or not settings.collect_enabled:
         return
 
     for job in scheduler.get_jobs():
