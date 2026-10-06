@@ -175,7 +175,7 @@ export function ReportDetailPanel({ reportId }: { reportId: number }) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="py-8">
       <Link href="/reports" className="text-sm text-zinc-600 hover:text-zinc-900">
         {t("common.back")}
       </Link>

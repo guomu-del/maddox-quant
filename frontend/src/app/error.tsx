@@ -18,7 +18,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center">
+    <div className="mx-auto flex max-w-lg flex-col items-center py-16 text-center">
       <h2 className="text-xl font-semibold text-zinc-900">{t("error.pageTitle")}</h2>
       <p className="mt-2 text-sm text-zinc-600">{error.message || t("error.unknown")}</p>
       <button

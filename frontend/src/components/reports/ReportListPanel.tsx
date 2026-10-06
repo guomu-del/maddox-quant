@@ -77,7 +77,7 @@ export function ReportListPanel() {
   const totalPages = Math.max(1, Math.ceil(total / 20));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="py-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t("reports.title")}</h1>

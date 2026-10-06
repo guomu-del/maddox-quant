@@ -20,8 +20,8 @@ export function SiteHeader() {
   const { t } = useLocale();
 
   return (
-    <header className="border-b border-zinc-200 bg-white">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-sky-200 bg-sky-50">
+      <div className="flex h-14 items-center justify-between px-5">
         <Link href="/" className="text-lg font-semibold text-zinc-900">
           Maddox Quant
         </Link>

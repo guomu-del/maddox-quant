@@ -46,7 +46,7 @@ export function NotificationsPanel() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
+    <div className="space-y-4 py-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t("notify.title")}</h1>

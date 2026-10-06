@@ -32,7 +32,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-zinc-50 text-zinc-900">
         <LocaleProvider>
           <SiteHeader />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 px-5 pt-14">{children}</main>
         </LocaleProvider>
       </body>
     </html>

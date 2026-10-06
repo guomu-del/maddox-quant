@@ -37,7 +37,7 @@ export function StockAnalysisPanel({ code }: { code: string }) {
   }));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <div className="space-y-6 py-8">
       <Link href="/analysis" className="text-sm text-zinc-600 hover:text-zinc-900">
         {t("common.backBoard")}
       </Link>

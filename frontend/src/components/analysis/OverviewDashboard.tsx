@@ -44,7 +44,7 @@ export function OverviewDashboard() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4 px-4 py-8">
+      <div className="space-y-4 py-8">
         <CardSkeleton />
         <CardSkeleton />
       </div>
@@ -57,7 +57,7 @@ export function OverviewDashboard() {
 
   if (data.total_reports === 0) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <div className="mx-auto max-w-lg py-16 text-center">
         <h1 className="text-2xl font-bold">{t("analysis.boardTitle")}</h1>
         <p className="mt-4 text-zinc-600">{t("analysis.boardEmpty")}</p>
         <a href="/reports/import" className="mt-6 inline-block text-sm font-medium text-zinc-900 underline">
@@ -79,7 +79,7 @@ export function OverviewDashboard() {
       : 0;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+    <div className="space-y-6 py-8">
       <div>
         <h1 className="text-2xl font-bold">{t("analysis.boardTitle")}</h1>
         <p className="mt-1 text-sm text-zinc-600">{t("analysis.boardHint")}</p>

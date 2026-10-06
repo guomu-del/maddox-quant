@@ -19,7 +19,7 @@ export function HomeView({ health }: { health: HealthResponse | null }) {
   const { t } = useLocale();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="py-10">
       <section className="mb-10">
         <h1 className="text-3xl font-bold tracking-tight">Maddox Quant</h1>
         <p className="mt-2 max-w-2xl text-zinc-600">{t("home.tagline")}</p>
