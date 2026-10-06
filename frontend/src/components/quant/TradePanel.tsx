@@ -2,6 +2,7 @@
 
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 
+import { localizeError, useLocale } from "@/i18n/locale";
 import {
   cancelOrder,
   fetchOrders,
@@ -17,31 +18,27 @@ import type { PaperAccount, PaperOrder, PaperPosition, PaperTrade } from "@/type
 type Side = "buy" | "sell";
 type OrderType = "market" | "limit";
 
-const money = new Intl.NumberFormat("zh-CN", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatMoney(value: number): string {
-  return money.format(value);
-}
-
-function formatTime(value: string | null): string {
-  return value ? new Date(value).toLocaleString("zh-CN") : "—";
-}
-
-function sideLabel(side: string): string {
-  return side === "buy" ? "买入" : "卖出";
-}
-
-const statusLabels: Record<string, string> = {
-  pending: "待成交",
-  filled: "已成交",
-  cancelled: "已撤单",
-  rejected: "已拒绝",
-};
-
 export function TradePanel({ code, quote }: { code: string; quote: StockQuote | null }) {
+  const { locale, t } = useLocale();
+  const money = new Intl.NumberFormat(locale === "en" ? "en-US" : "zh-CN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  function formatMoney(value: number): string {
+    return money.format(value);
+  }
+  function formatTime(value: string | null): string {
+    return value ? new Date(value).toLocaleString(locale === "en" ? "en-US" : "zh-CN") : t("common.dash");
+  }
+  function sideLabel(side: string): string {
+    return side === "buy" ? t("quant.buy") : t("quant.sell");
+  }
+  const statusLabels: Record<string, string> = {
+    pending: t("quant.pending"),
+    filled: t("quant.filled"),
+    cancelled: t("quant.cancelled"),
+    rejected: t("quant.rejected"),
+  };
   const [account, setAccount] = useState<PaperAccount | null>(null);
   const [positions, setPositions] = useState<PaperPosition[]>([]);
   const [orders, setOrders] = useState<PaperOrder[]>([]);
@@ -67,11 +64,11 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
       setTrades(nextTrades);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "仿真账户加载失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "quant.accountFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     setLoading(true);
@@ -104,10 +101,10 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
         price: parsedPrice,
         quantity: parsedQuantity,
       });
-      setMessage("委托已提交");
+      setMessage(t("quant.orderSubmitted"));
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "委托提交失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "quant.orderSubmitFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -118,23 +115,23 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
     setError(null);
     try {
       await cancelOrder(id);
-      setMessage("委托已撤销");
+      setMessage(t("quant.orderCancelled"));
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "撤单失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "quant.cancelFailed"));
     }
   }
 
   async function reset() {
-    if (!window.confirm("将清空委托、成交与持仓，现金恢复为100万")) return;
+    if (!window.confirm(t("quant.resetConfirm"))) return;
     setMessage(null);
     setError(null);
     try {
       await resetPaperAccount();
-      setMessage("仿真账户已重置");
+      setMessage(t("quant.resetDone"));
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "账户重置失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "quant.resetFailed"));
     }
   }
 
@@ -147,14 +144,14 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-              仿真，非实盘
+              {t("quant.paperOnly")}
             </p>
             <h2 className="mt-1 text-xl font-semibold">
               {quote?.name ? `${quote.name} ` : ""}
-              <span className="text-sm font-normal text-zinc-500">{code || "未选择股票"}</span>
+              <span className="text-sm font-normal text-zinc-500">{code || t("quant.noStock")}</span>
             </h2>
             {quote?.last != null ? (
-              <p className="mt-1 text-sm text-zinc-600">最新价 {formatMoney(quote.last)}</p>
+              <p className="mt-1 text-sm text-zinc-600">{t("quant.lastPrice", { price: formatMoney(quote.last) })}</p>
             ) : null}
           </div>
           <button
@@ -162,19 +159,19 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
             onClick={() => void reset()}
             className="rounded-lg border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-50"
           >
-            重置仿真账户
+            {t("quant.reset")}
           </button>
         </div>
         <dl className="mt-5 grid gap-3 sm:grid-cols-3">
           {[
-            ["现金", account?.cash],
-            ["冻结", account?.frozen],
-            ["总权益", account?.equity],
+            [t("quant.cash"), account?.cash],
+            [t("quant.frozen"), account?.frozen],
+            [t("quant.equity"), account?.equity],
           ].map(([label, value]) => (
             <div key={String(label)} className="rounded-lg bg-zinc-100 px-4 py-3">
               <dt className="text-xs text-zinc-500">{label}</dt>
               <dd className="mt-1 text-lg font-semibold">
-                {typeof value === "number" ? `¥${formatMoney(value)}` : "—"}
+                {typeof value === "number" ? `¥${formatMoney(value)}` : t("common.dash")}
               </dd>
             </div>
           ))}
@@ -182,24 +179,24 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
       </header>
 
       <form onSubmit={placeOrder} className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h3 className="text-sm font-semibold">下单</h3>
+        <h3 className="text-sm font-semibold">{t("quant.order")}</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">方向</span>
+            <span className="mb-1 block text-zinc-600">{t("quant.side")}</span>
             <select
-              aria-label="方向"
+              aria-label={t("quant.side")}
               value={side}
               onChange={(event) => setSide(event.target.value as Side)}
               className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3"
             >
-              <option value="buy">买入</option>
-              <option value="sell">卖出</option>
+              <option value="buy">{t("quant.buy")}</option>
+              <option value="sell">{t("quant.sell")}</option>
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">委托类型</span>
+            <span className="mb-1 block text-zinc-600">{t("quant.orderType")}</span>
             <select
-              aria-label="委托类型"
+              aria-label={t("quant.orderType")}
               value={orderType}
               onChange={(event) => {
                 const nextType = event.target.value as OrderType;
@@ -210,28 +207,28 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
               }}
               className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3"
             >
-              <option value="market">市价</option>
-              <option value="limit">限价</option>
+              <option value="market">{t("quant.market")}</option>
+              <option value="limit">{t("quant.limit")}</option>
             </select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">价格</span>
+            <span className="mb-1 block text-zinc-600">{t("quant.price")}</span>
             <input
-              aria-label="价格"
+              aria-label={t("quant.price")}
               type="number"
               min="0.01"
               step="0.01"
               value={price}
               disabled={orderType !== "limit"}
               onChange={(event) => setPrice(event.target.value)}
-              placeholder={orderType === "market" ? "市价单无需填写" : "输入限价"}
+              placeholder={orderType === "market" ? t("quant.marketPriceHint") : t("quant.limitPriceHint")}
               className="h-10 w-full rounded-lg border border-zinc-300 px-3 disabled:bg-zinc-100 disabled:text-zinc-400"
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">数量</span>
+            <span className="mb-1 block text-zinc-600">{t("quant.qty")}</span>
             <input
-              aria-label="数量"
+              aria-label={t("quant.qty")}
               type="number"
               min="1"
               step="1"
@@ -247,9 +244,9 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
             disabled={!code || !validQuantity || !validPrice || submitting}
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {submitting ? "提交中…" : side === "buy" ? "买入下单" : "卖出下单"}
+            {submitting ? t("quant.submitting") : side === "buy" ? t("quant.submitBuy") : t("quant.submitSell")}
           </button>
-          {!code ? <span className="text-sm text-amber-700">请先选择股票代码</span> : null}
+          {!code ? <span className="text-sm text-amber-700">{t("quant.pickCode")}</span> : null}
           {message ? <span className="text-sm text-emerald-700">{message}</span> : null}
           {error ? <span className="text-sm text-red-600">{error}</span> : null}
         </div>
@@ -257,18 +254,18 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
 
       {loading ? (
         <div className="rounded-xl border border-zinc-200 bg-white py-16 text-center text-sm text-zinc-500">
-          仿真数据加载中…
+          {t("quant.accountLoading")}
         </div>
       ) : (
         <>
-          <DataTable title="委托">
+          <DataTable title={t("quant.orders")}>
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-zinc-50 text-zinc-500">
                 <tr>
-                  <th className="px-4 py-3">时间</th><th className="px-4 py-3">标的</th>
-                  <th className="px-4 py-3">方向</th><th className="px-4 py-3">类型</th>
-                  <th className="px-4 py-3">价格</th><th className="px-4 py-3">数量/成交</th>
-                  <th className="px-4 py-3">状态</th><th className="px-4 py-3">操作</th>
+                  <th className="px-4 py-3">{t("quant.time")}</th><th className="px-4 py-3">{t("quant.symbol")}</th>
+                  <th className="px-4 py-3">{t("quant.side")}</th><th className="px-4 py-3">{t("quant.type")}</th>
+                  <th className="px-4 py-3">{t("quant.price")}</th><th className="px-4 py-3">{t("quant.qtyFilled")}</th>
+                  <th className="px-4 py-3">{t("quant.status")}</th><th className="px-4 py-3">{t("quant.action")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -277,8 +274,8 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                     <td className="px-4 py-3 text-zinc-500">{formatTime(order.created_at)}</td>
                     <td className="px-4 py-3">{order.name} {order.code}</td>
                     <td className="px-4 py-3">{sideLabel(order.side)}</td>
-                    <td className="px-4 py-3">{order.order_type === "market" ? "市价" : "限价"}</td>
-                    <td className="px-4 py-3">{order.price == null ? "—" : formatMoney(order.price)}</td>
+                    <td className="px-4 py-3">{order.order_type === "market" ? t("quant.market") : t("quant.limit")}</td>
+                    <td className="px-4 py-3">{order.price == null ? t("common.dash") : formatMoney(order.price)}</td>
                     <td className="px-4 py-3">{order.quantity} / {order.filled_qty}</td>
                     <td className="px-4 py-3" title={order.reject_reason ?? undefined}>
                       {statusLabels[order.status] ?? order.status}
@@ -286,24 +283,24 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                     <td className="px-4 py-3">
                       {order.status === "pending" ? (
                         <button type="button" onClick={() => void cancel(order.id)} className="text-zinc-700 underline">
-                          撤单
+                          {t("quant.cancel")}
                         </button>
-                      ) : "—"}
+                      ) : t("common.dash")}
                     </td>
                   </tr>
                 ))}
-                {orders.length === 0 ? <EmptyRow colSpan={8} /> : null}
+                {orders.length === 0 ? <EmptyRow colSpan={8} label={t("common.noData")} /> : null}
               </tbody>
             </table>
           </DataTable>
 
-          <DataTable title="成交">
+          <DataTable title={t("quant.trades")}>
             <table className="w-full min-w-[680px] text-left text-sm">
               <thead className="bg-zinc-50 text-zinc-500">
                 <tr>
-                  <th className="px-4 py-3">时间</th><th className="px-4 py-3">标的</th>
-                  <th className="px-4 py-3">方向</th><th className="px-4 py-3">成交价</th>
-                  <th className="px-4 py-3">数量</th><th className="px-4 py-3">费用</th>
+                  <th className="px-4 py-3">{t("quant.time")}</th><th className="px-4 py-3">{t("quant.symbol")}</th>
+                  <th className="px-4 py-3">{t("quant.side")}</th><th className="px-4 py-3">{t("quant.fillPrice")}</th>
+                  <th className="px-4 py-3">{t("quant.qtyCol")}</th><th className="px-4 py-3">{t("quant.fees")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -317,17 +314,17 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                     <td className="px-4 py-3">{formatMoney(trade.commission + trade.stamp_tax)}</td>
                   </tr>
                 ))}
-                {trades.length === 0 ? <EmptyRow colSpan={6} /> : null}
+                {trades.length === 0 ? <EmptyRow colSpan={6} label={t("common.noData")} /> : null}
               </tbody>
             </table>
           </DataTable>
 
-          <DataTable title="持仓">
+          <DataTable title={t("quant.positions")}>
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="bg-zinc-50 text-zinc-500">
                 <tr>
-                  <th className="px-4 py-3">标的</th><th className="px-4 py-3">数量</th>
-                  <th className="px-4 py-3">成本金额</th><th className="px-4 py-3">成本价</th>
+                  <th className="px-4 py-3">{t("quant.symbol")}</th><th className="px-4 py-3">{t("quant.qtyCol")}</th>
+                  <th className="px-4 py-3">{t("quant.costAmount")}</th><th className="px-4 py-3">{t("quant.costPrice")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -337,11 +334,11 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                     <td className="px-4 py-3">{position.quantity}</td>
                     <td className="px-4 py-3">{formatMoney(position.cost_amount)}</td>
                     <td className="px-4 py-3">
-                      {position.quantity > 0 ? formatMoney(position.cost_amount / position.quantity) : "—"}
+                      {position.quantity > 0 ? formatMoney(position.cost_amount / position.quantity) : t("common.dash")}
                     </td>
                   </tr>
                 ))}
-                {positions.length === 0 ? <EmptyRow colSpan={4} /> : null}
+                {positions.length === 0 ? <EmptyRow colSpan={4} label={t("common.noData")} /> : null}
               </tbody>
             </table>
           </DataTable>
@@ -360,10 +357,10 @@ function DataTable({ title, children }: { title: string; children: ReactNode }) 
   );
 }
 
-function EmptyRow({ colSpan }: { colSpan: number }) {
+function EmptyRow({ colSpan, label }: { colSpan: number; label: string }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-8 text-center text-zinc-500">暂无数据</td>
+      <td colSpan={colSpan} className="px-4 py-8 text-center text-zinc-500">{label}</td>
     </tr>
   );
 }

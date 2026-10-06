@@ -19,14 +19,9 @@ import {
 } from "recharts";
 
 import { CardSkeleton } from "@/components/ui/LoadingSkeleton";
+import { localizeError, useLocale } from "@/i18n/locale";
 import { fetchOverview } from "@/lib/analysis-api";
 import type { OverviewData } from "@/types/aggregation";
-
-const SENTIMENT_LABEL: Record<string, string> = {
-  bullish: "利好",
-  neutral: "中性",
-  bearish: "利空",
-};
 
 const SENTIMENT_COLOR: Record<string, string> = {
   bullish: "#10b981",
@@ -35,6 +30,7 @@ const SENTIMENT_COLOR: Record<string, string> = {
 };
 
 export function OverviewDashboard() {
+  const { locale, t } = useLocale();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +38,9 @@ export function OverviewDashboard() {
   useEffect(() => {
     void fetchOverview()
       .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
+      .catch((err) => setError(localizeError(locale, err instanceof Error ? err.message : null, "common.loadFailed")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [locale]);
 
   if (loading) {
     return (
@@ -56,23 +52,23 @@ export function OverviewDashboard() {
   }
 
   if (error || !data) {
-    return <div className="py-12 text-center text-red-600">{error ?? "暂无数据"}</div>;
+    return <div className="py-12 text-center text-red-600">{error ?? t("common.noData")}</div>;
   }
 
   if (data.total_reports === 0) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">分析看板</h1>
-        <p className="mt-4 text-zinc-600">还没有研报数据，导入后将在此展示聚合分析。</p>
+        <h1 className="text-2xl font-bold">{t("analysis.boardTitle")}</h1>
+        <p className="mt-4 text-zinc-600">{t("analysis.boardEmpty")}</p>
         <a href="/reports/import" className="mt-6 inline-block text-sm font-medium text-zinc-900 underline">
-          导入第一篇研报
+          {t("reports.importFirst")}
         </a>
       </div>
     );
   }
 
   const sentimentData = Object.entries(data.sentiment_distribution).map(([key, value]) => ({
-    name: SENTIMENT_LABEL[key] ?? key,
+    name: key === "bullish" ? t("analysis.bullish") : key === "bearish" ? t("analysis.bearish") : t("analysis.neutral"),
     key,
     value,
   }));
@@ -85,26 +81,26 @@ export function OverviewDashboard() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">分析看板</h1>
-        <p className="mt-1 text-sm text-zinc-600">跨研报聚合统计与趋势洞察</p>
+        <h1 className="text-2xl font-bold">{t("analysis.boardTitle")}</h1>
+        <p className="mt-1 text-sm text-zinc-600">{t("analysis.boardHint")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="研报总数" value={String(data.total_reports)} />
-        <StatCard title="已分析" value={`${data.analyzed_count} (${analyzedRate}%)`} />
+        <StatCard title={t("analysis.totalReports")} value={String(data.total_reports)} />
+        <StatCard title={t("analysis.analyzed")} value={`${data.analyzed_count} (${analyzedRate}%)`} />
         <StatCard
-          title="利好研报"
+          title={t("analysis.bullishReports")}
           value={String(data.sentiment_distribution.bullish ?? 0)}
         />
         <StatCard
-          title="热门行业"
-          value={data.top_industries[0]?.name ?? "—"}
-          subtitle={data.top_industries[0] ? `${data.top_industries[0].count} 篇` : undefined}
+          title={t("analysis.hotIndustry")}
+          value={data.top_industries[0]?.name ?? t("common.dash")}
+          subtitle={data.top_industries[0] ? t("analysis.reportCount", { count: data.top_industries[0].count }) : undefined}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="情感分布">
+        <ChartCard title={t("analysis.sentimentDist")}>
           {sentimentData.length === 0 ? (
             <EmptyChart />
           ) : (
@@ -122,7 +118,7 @@ export function OverviewDashboard() {
           )}
         </ChartCard>
 
-        <ChartCard title="行业研报数量 Top 10">
+        <ChartCard title={t("analysis.industryTop")}>
           {data.top_industries.length === 0 ? (
             <EmptyChart />
           ) : (
@@ -138,7 +134,7 @@ export function OverviewDashboard() {
           )}
         </ChartCard>
 
-        <ChartCard title="热门因子 Top 10">
+        <ChartCard title={t("analysis.factorTop")}>
           {data.top_factors.length === 0 ? (
             <EmptyChart />
           ) : (
@@ -154,7 +150,7 @@ export function OverviewDashboard() {
           )}
         </ChartCard>
 
-        <ChartCard title="研报发布趋势（按周）">
+        <ChartCard title={t("analysis.trendWeekly")}>
           {data.report_trend.length === 0 ? (
             <EmptyChart />
           ) : (
@@ -172,9 +168,9 @@ export function OverviewDashboard() {
       </div>
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900">最近入库研报</h2>
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">{t("analysis.recent")}</h2>
         {data.recent_reports.length === 0 ? (
-          <p className="text-sm text-zinc-500">暂无研报</p>
+          <p className="text-sm text-zinc-500">{t("analysis.noReports")}</p>
         ) : (
           <ul className="divide-y divide-zinc-100">
             {data.recent_reports.map((report) => (
@@ -182,7 +178,7 @@ export function OverviewDashboard() {
                 <Link href={`/reports/${report.id}`} className="font-medium hover:underline">
                   {report.title}
                 </Link>
-                <span className="text-zinc-500">{report.publish_date ?? report.source ?? "—"}</span>
+                <span className="text-zinc-500">{report.publish_date ?? report.source ?? t("common.dash")}</span>
               </li>
             ))}
           </ul>
@@ -234,9 +230,10 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 }
 
 function EmptyChart() {
+  const { t } = useLocale();
   return (
     <div className="flex h-[260px] items-center justify-center text-sm text-zinc-400">
-      暂无数据
+      {t("common.noData")}
     </div>
   );
 }

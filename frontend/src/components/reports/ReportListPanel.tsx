@@ -5,16 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
+import { localizeError, useLocale } from "@/i18n/locale";
 import { fetchReports } from "@/lib/reports-api";
 import type { Report } from "@/types/report";
 
-const STATUS_LABEL: Record<Report["status"], string> = {
-  pending: "解析中",
-  parsed: "已解析",
-  failed: "解析失败",
-};
-
 export function ReportListPanel() {
+  const { locale, t, joinList } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [reports, setReports] = useState<Report[]>([]);
@@ -24,6 +20,12 @@ export function ReportListPanel() {
   const [industry, setIndustry] = useState(searchParams.get("industry") ?? "");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const statusLabel: Record<Report["status"], string> = {
+    pending: t("reports.statusPending"),
+    parsed: t("reports.statusParsed"),
+    failed: t("reports.statusFailed"),
+  };
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -38,11 +40,11 @@ export function ReportListPanel() {
       setReports(data.items);
       setTotal(data.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "加载失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "common.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [page, q, industry]);
+  }, [page, q, industry, locale]);
 
   useEffect(() => {
     void loadReports();
@@ -63,14 +65,14 @@ export function ReportListPanel() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">研报库</h1>
-          <p className="mt-1 text-sm text-zinc-600">共 {total} 篇研报</p>
+          <h1 className="text-2xl font-bold">{t("reports.title")}</h1>
+          <p className="mt-1 text-sm text-zinc-600">{t("reports.count", { total })}</p>
         </div>
         <Link
           href="/reports/import"
           className="inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
         >
-          导入研报
+          {t("reports.import")}
         </Link>
       </div>
 
@@ -81,20 +83,20 @@ export function ReportListPanel() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="搜索标题、摘要、全文..."
+          placeholder={t("reports.searchPlaceholder")}
           className="h-10 rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-500"
         />
         <input
           value={industry}
           onChange={(e) => setIndustry(e.target.value)}
-          placeholder="行业筛选"
+          placeholder={t("reports.industryPlaceholder")}
           className="h-10 rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-500"
         />
         <button
           type="submit"
           className="h-10 rounded-lg bg-zinc-100 px-4 text-sm font-medium hover:bg-zinc-200"
         >
-          筛选
+          {t("common.filter")}
         </button>
       </form>
 
@@ -106,9 +108,9 @@ export function ReportListPanel() {
         </div>
       ) : reports.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-12 text-center">
-          <p className="text-zinc-600">暂无研报</p>
+          <p className="text-zinc-600">{t("reports.empty")}</p>
           <Link href="/reports/import" className="mt-4 inline-block text-sm text-zinc-900 underline">
-            导入第一篇研报
+            {t("reports.importFirst")}
           </Link>
         </div>
       ) : (
@@ -116,11 +118,11 @@ export function ReportListPanel() {
           <table className="min-w-full text-sm">
             <thead className="bg-zinc-50 text-left text-zinc-600">
               <tr>
-                <th className="px-4 py-3 font-medium">标题</th>
-                <th className="px-4 py-3 font-medium">行业</th>
-                <th className="px-4 py-3 font-medium">来源</th>
-                <th className="px-4 py-3 font-medium">日期</th>
-                <th className="px-4 py-3 font-medium">状态</th>
+                <th className="px-4 py-3 font-medium">{t("reports.colTitle")}</th>
+                <th className="px-4 py-3 font-medium">{t("reports.colIndustry")}</th>
+                <th className="px-4 py-3 font-medium">{t("reports.colSource")}</th>
+                <th className="px-4 py-3 font-medium">{t("reports.colDate")}</th>
+                <th className="px-4 py-3 font-medium">{t("reports.colStatus")}</th>
               </tr>
             </thead>
             <tbody>
@@ -132,10 +134,10 @@ export function ReportListPanel() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-zinc-600">
-                    {report.industries?.join("、") || "—"}
+                    {report.industries?.length ? joinList(report.industries) : t("common.dash")}
                   </td>
-                  <td className="px-4 py-3 text-zinc-600">{report.source || "—"}</td>
-                  <td className="px-4 py-3 text-zinc-600">{report.publish_date || "—"}</td>
+                  <td className="px-4 py-3 text-zinc-600">{report.source || t("common.dash")}</td>
+                  <td className="px-4 py-3 text-zinc-600">{report.publish_date || t("common.dash")}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2 py-1 text-xs ${
@@ -146,7 +148,7 @@ export function ReportListPanel() {
                             : "bg-amber-50 text-amber-700"
                       }`}
                     >
-                      {STATUS_LABEL[report.status]}
+                      {statusLabel[report.status]}
                     </span>
                   </td>
                 </tr>
@@ -163,7 +165,7 @@ export function ReportListPanel() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className="rounded-lg border border-zinc-300 px-3 py-1 text-sm disabled:opacity-40"
           >
-            上一页
+            {t("common.prev")}
           </button>
           <span className="text-sm text-zinc-600">
             {page} / {totalPages}
@@ -173,7 +175,7 @@ export function ReportListPanel() {
             onClick={() => setPage((p) => p + 1)}
             className="rounded-lg border border-zinc-300 px-3 py-1 text-sm disabled:opacity-40"
           >
-            下一页
+            {t("common.next")}
           </button>
         </div>
       )}

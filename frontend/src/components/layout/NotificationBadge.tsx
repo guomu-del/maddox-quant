@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useLocale } from "@/i18n/locale";
 import { fetchUnreadCount } from "@/lib/watchlist-api";
 
 export function NotificationBadge() {
+  const { t } = useLocale();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export function NotificationBadge() {
 
   return (
     <Link href="/notifications" className="relative transition-colors hover:text-zinc-900">
-      通知中心
+      {t("nav.notifications")}
       {count > 0 && (
         <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
           {count > 99 ? "99+" : count}

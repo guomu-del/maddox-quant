@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
+import { LocaleProvider } from "@/i18n/locale";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Maddox Quant",
-  description: "量化投研平台 — 研报分析、数据洞察、关注通知",
+  description: "Quant research platform — reports, insights, watchlists and alerts",
 };
 
 export default function RootLayout({
@@ -29,8 +30,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-zinc-50 text-zinc-900">
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
+        <LocaleProvider>
+          <SiteHeader />
+          <main className="flex-1">{children}</main>
+        </LocaleProvider>
       </body>
     </html>
   );

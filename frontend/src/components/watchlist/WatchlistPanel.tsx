@@ -3,16 +3,12 @@
 import { useEffect, useState } from "react";
 
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
+import { localizeError, useLocale } from "@/i18n/locale";
 import { addWatchlist, deleteWatchlist, fetchWatchlist } from "@/lib/watchlist-api";
 import type { WatchlistItem } from "@/types/watchlist";
 
-const TYPE_LABEL = {
-  industry: "行业",
-  sector: "板块",
-  stock: "个股",
-} as const;
-
 export function WatchlistPanel() {
+  const { locale, t } = useLocale();
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,13 +17,19 @@ export function WatchlistPanel() {
   const [targetName, setTargetName] = useState("");
   const [note, setNote] = useState("");
 
+  const typeLabel = {
+    industry: t("watch.industry"),
+    sector: t("watch.sector"),
+    stock: t("watch.stock"),
+  } as const;
+
   async function load() {
     setLoading(true);
     setError(null);
     try {
       setItems(await fetchWatchlist());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "加载失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "watch.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -35,7 +37,7 @@ export function WatchlistPanel() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [locale]);
 
   async function handleAdd(event: React.FormEvent) {
     event.preventDefault();
@@ -52,7 +54,7 @@ export function WatchlistPanel() {
       setNote("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "添加失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "watch.addFailed"));
     }
   }
 
@@ -61,33 +63,33 @@ export function WatchlistPanel() {
       await deleteWatchlist(id);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "watch.deleteFailed"));
     }
   }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">我的关注</h1>
-        <p className="mt-1 text-sm text-zinc-600">关注行业、板块或个股，有新研报入库时将收到通知。</p>
+        <h1 className="text-2xl font-bold">{t("watch.title")}</h1>
+        <p className="mt-1 text-sm text-zinc-600">{t("watch.hint")}</p>
       </div>
 
       <form onSubmit={handleAdd} className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">添加关注</h2>
+        <h2 className="text-sm font-semibold">{t("watch.addTitle")}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <select
             value={targetType}
             onChange={(e) => setTargetType(e.target.value as "industry" | "sector" | "stock")}
             className="h-10 rounded-lg border border-zinc-300 px-3 text-sm"
           >
-            <option value="industry">行业</option>
-            <option value="sector">板块</option>
-            <option value="stock">个股</option>
+            <option value="industry">{t("watch.industry")}</option>
+            <option value="sector">{t("watch.sector")}</option>
+            <option value="stock">{t("watch.stock")}</option>
           </select>
           <input
             value={targetCode}
             onChange={(e) => setTargetCode(e.target.value)}
-            placeholder="代码/名称（如 新能源 或 300750）"
+            placeholder={t("watch.codePlaceholder")}
             className="h-10 rounded-lg border border-zinc-300 px-3 text-sm"
             required
           />
@@ -95,20 +97,20 @@ export function WatchlistPanel() {
         <input
           value={targetName}
           onChange={(e) => setTargetName(e.target.value)}
-          placeholder="显示名称（可选）"
+          placeholder={t("watch.namePlaceholder")}
           className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
         />
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="备注（可选）"
+          placeholder={t("watch.notePlaceholder")}
           className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
         />
         <button
           type="submit"
           className="h-9 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
         >
-          添加关注
+          {t("watch.add")}
         </button>
       </form>
 
@@ -118,7 +120,7 @@ export function WatchlistPanel() {
         <ListSkeleton rows={4} />
       ) : items.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 py-12 text-center text-zinc-500">
-          暂无关注项
+          {t("watch.empty")}
         </p>
       ) : (
         <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
@@ -127,7 +129,7 @@ export function WatchlistPanel() {
               <div>
                 <p className="font-medium">
                   <span className="mr-2 rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
-                    {TYPE_LABEL[item.target_type]}
+                    {typeLabel[item.target_type]}
                   </span>
                   {item.target_name || item.target_code}
                 </p>
@@ -137,7 +139,7 @@ export function WatchlistPanel() {
                 onClick={() => void handleDelete(item.id)}
                 className="text-zinc-500 hover:text-red-600"
               >
-                取消关注
+                {t("watch.unfollow")}
               </button>
             </li>
           ))}

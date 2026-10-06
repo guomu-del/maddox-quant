@@ -8,6 +8,8 @@ import { BacktestPanel } from "@/components/quant/BacktestPanel";
 import { QuantChart } from "@/components/quant/QuantChart";
 import { TradePanel } from "@/components/quant/TradePanel";
 import { quickAddWatchlist } from "@/components/watchlist/WatchlistPanel";
+import { localizeError, useLocale } from "@/i18n/locale";
+import type { MessageKey } from "@/i18n/messages";
 import { fetchStockKline, fetchStockQuote } from "@/lib/market-api";
 import { fetchWatchlist } from "@/lib/watchlist-api";
 import type { KlineResponse, StockQuote } from "@/types/market";
@@ -15,10 +17,10 @@ import type { WatchlistItem } from "@/types/watchlist";
 
 type QuantTab = "quote" | "trade" | "backtest";
 
-const TABS: { value: QuantTab; label: string }[] = [
-  { value: "quote", label: "行情" },
-  { value: "trade", label: "交易" },
-  { value: "backtest", label: "回测" },
+const TABS: { value: QuantTab; labelKey: MessageKey }[] = [
+  { value: "quote", labelKey: "quant.tabQuote" },
+  { value: "trade", labelKey: "quant.tabTrade" },
+  { value: "backtest", labelKey: "quant.tabBacktest" },
 ];
 
 function changeClass(value: number | null): string {
@@ -26,10 +28,13 @@ function changeClass(value: number | null): string {
   return value > 0 ? "text-red-600" : "text-emerald-600";
 }
 
-function formatNumber(value: number | null): string {
+function formatNumber(value: number | null, locale: string): string {
   return value == null
     ? "—"
-    : value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    : value.toLocaleString(locale === "en" ? "en-US" : "zh-CN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
 }
 
 function formatPct(value: number | null): string {
@@ -38,6 +43,7 @@ function formatPct(value: number | null): string {
 }
 
 export function QuantWorkbench() {
+  const { locale, t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get("code")?.trim() ?? "";
@@ -65,7 +71,7 @@ export function QuantWorkbench() {
         }
       } catch (err) {
         if (!cancelled) {
-          setWatchlistError(err instanceof Error ? err.message : "自选加载失败");
+          setWatchlistError(localizeError(locale, err instanceof Error ? err.message : null, "quant.watchlistFailed"));
         }
       }
     }
@@ -73,7 +79,7 @@ export function QuantWorkbench() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +103,7 @@ export function QuantWorkbench() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "行情加载失败");
+          setError(localizeError(locale, err instanceof Error ? err.message : null, "quant.quoteFailed"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -133,21 +139,21 @@ export function QuantWorkbench() {
         target_code: quote.code,
         target_name: quote.name,
       });
-      setWatchMessage(`已关注 ${quote.name}`);
+      setWatchMessage(t("watch.added", { name: quote.name }));
     } catch (err) {
-      setWatchMessage(err instanceof Error ? err.message : "关注失败");
+      setWatchMessage(localizeError(locale, err instanceof Error ? err.message : null, "quant.watchFailed"));
     }
   }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">量化工作台</h1>
-        <p className="mt-1 text-sm text-zinc-600">仿真，非实盘</p>
+        <h1 className="text-2xl font-bold">{t("quant.title")}</h1>
+        <p className="mt-1 text-sm text-zinc-600">{t("quant.paperOnly")}</p>
       </div>
 
       <div className="border-b border-zinc-200">
-        <nav className="-mb-px flex gap-6" aria-label="量化页签">
+        <nav className="-mb-px flex gap-6" aria-label={t("quant.tabsAria")}>
           {TABS.map((item) => (
             <button
               key={item.value}
@@ -159,7 +165,7 @@ export function QuantWorkbench() {
                   : "border-transparent text-zinc-500 hover:text-zinc-800"
               }`}
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </nav>
@@ -169,7 +175,7 @@ export function QuantWorkbench() {
         <aside className="space-y-4">
           <form onSubmit={onSearch} className="rounded-xl border border-zinc-200 bg-white p-4">
             <label htmlFor="quant-code" className="text-sm font-semibold">
-              股票代码
+              {t("quant.code")}
             </label>
             <div className="mt-3 flex gap-2">
               <input
@@ -177,24 +183,24 @@ export function QuantWorkbench() {
                 id="quant-code"
                 name="code"
                 defaultValue={code}
-                placeholder="如 600519"
+                placeholder={t("quant.codePlaceholder")}
                 className="h-9 min-w-0 flex-1 rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-500"
               />
               <button
                 type="submit"
                 className="h-9 rounded-lg bg-zinc-900 px-3 text-sm font-medium text-white"
               >
-                搜索
+                {t("common.search")}
               </button>
             </div>
           </form>
 
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="text-sm font-semibold">股票自选</h2>
+            <h2 className="text-sm font-semibold">{t("quant.watchlist")}</h2>
             {watchlistError ? (
               <p className="mt-3 text-sm text-red-600">{watchlistError}</p>
             ) : watchlist.length === 0 ? (
-              <p className="mt-3 text-sm text-zinc-500">暂无股票自选</p>
+              <p className="mt-3 text-sm text-zinc-500">{t("quant.noWatchlist")}</p>
             ) : (
               <ul className="mt-3 space-y-1">
                 {watchlist.map((item) => (
@@ -223,11 +229,11 @@ export function QuantWorkbench() {
             <BacktestPanel code={code} />
           ) : !code ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-white py-24 text-center text-zinc-500">
-              搜索或从自选打开标的
+              {t("quant.pickHint")}
             </div>
           ) : loading ? (
             <div className="rounded-xl border border-zinc-200 bg-white py-24 text-center text-zinc-500">
-              行情加载中…
+              {t("quant.quoteLoading")}
             </div>
           ) : error ? (
             <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -241,10 +247,10 @@ export function QuantWorkbench() {
                     <h2 className="text-xl font-semibold">
                       {quote.name} <span className="text-sm font-normal text-zinc-500">{quote.code}</span>
                     </h2>
-                    <p className="mt-1 text-sm text-zinc-500">仿真，非实盘</p>
+                    <p className="mt-1 text-sm text-zinc-500">{t("quant.paperOnly")}</p>
                   </div>
                   <div className={`text-right ${changeClass(quote.change_pct)}`}>
-                    <div className="text-3xl font-semibold">{formatNumber(quote.last)}</div>
+                    <div className="text-3xl font-semibold">{formatNumber(quote.last, locale)}</div>
                     <div className="text-sm">{formatPct(quote.change_pct)}</div>
                   </div>
                 </div>
@@ -253,7 +259,7 @@ export function QuantWorkbench() {
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_180px]">
                 <div className="rounded-xl border border-zinc-200 bg-white p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">日 K</h3>
+                    <h3 className="text-sm font-semibold">{t("quant.dailyK")}</h3>
                     <label className="flex items-center gap-2 text-sm text-zinc-600">
                       <input
                         type="checkbox"
@@ -266,10 +272,10 @@ export function QuantWorkbench() {
                   {kline && kline.items.length > 0 ? (
                     <QuantChart items={kline.items} showMa={showMa} />
                   ) : (
-                    <p className="py-24 text-center text-sm text-zinc-500">暂无日 K 数据</p>
+                    <p className="py-24 text-center text-sm text-zinc-500">{t("quant.noKline")}</p>
                   )}
                   {kline?.stale ? (
-                    <p className="mt-2 text-xs text-amber-600">当前显示缓存数据</p>
+                    <p className="mt-2 text-xs text-amber-600">{t("quant.cached")}</p>
                   ) : null}
                 </div>
                 <div className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
@@ -277,20 +283,20 @@ export function QuantWorkbench() {
                     href={`/reports?q=${encodeURIComponent(quote.code)}`}
                     className="block rounded-lg border border-zinc-200 px-3 py-2 text-center text-sm hover:bg-zinc-50"
                   >
-                    查看研报
+                    {t("quant.viewReports")}
                   </Link>
                   <Link
                     href={`/analysis/stock/${encodeURIComponent(quote.code)}`}
                     className="block rounded-lg border border-zinc-200 px-3 py-2 text-center text-sm hover:bg-zinc-50"
                   >
-                    个股分析
+                    {t("quant.stockAnalysis")}
                   </Link>
                   <button
                     type="button"
                     onClick={() => void watchStock()}
                     className="w-full rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white"
                   >
-                    关注
+                    {t("common.watch")}
                   </button>
                   {watchMessage ? (
                     <p className="text-center text-xs text-zinc-600">{watchMessage}</p>

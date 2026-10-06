@@ -1,17 +1,24 @@
+"use client";
+
 import Link from "next/link";
 
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { NotificationBadge } from "@/components/layout/NotificationBadge";
+import { useLocale } from "@/i18n/locale";
+import type { MessageKey } from "@/i18n/messages";
 
-const navItems = [
-  { href: "/market", label: "行情" },
-  { href: "/quant", label: "量化" },
-  { href: "/reports", label: "研报" },
-  { href: "/analysis", label: "分析看板" },
-  { href: "/watchlist", label: "我的关注" },
-  { href: "/admin/sources", label: "采集管理" },
+const navItems: { href: string; labelKey: MessageKey }[] = [
+  { href: "/market", labelKey: "nav.market" },
+  { href: "/quant", labelKey: "nav.quant" },
+  { href: "/reports", labelKey: "nav.reports" },
+  { href: "/analysis", labelKey: "nav.analysis" },
+  { href: "/watchlist", labelKey: "nav.watchlist" },
+  { href: "/admin/sources", labelKey: "nav.sources" },
 ];
 
 export function SiteHeader() {
+  const { t } = useLocale();
+
   return (
     <header className="border-b border-zinc-200 bg-white">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -25,10 +32,11 @@ export function SiteHeader() {
               href={item.href}
               className="transition-colors hover:text-zinc-900"
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           ))}
           <NotificationBadge />
+          <LanguageSwitcher />
         </nav>
       </div>
     </header>

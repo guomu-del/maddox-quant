@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
+import { localizeError, useLocale } from "@/i18n/locale";
 import {
   createCollectSource,
   deleteCollectSource,
@@ -13,14 +14,8 @@ import {
 } from "@/lib/collect-api";
 import type { CollectLog, CollectSource } from "@/types/collect-source";
 
-const STATUS_LABEL: Record<string, string> = {
-  success: "成功",
-  failed: "失败",
-  running: "运行中",
-  queued: "排队中",
-};
-
 export function CollectSourcesPanel() {
+  const { locale, t } = useLocale();
   const [sources, setSources] = useState<CollectSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,21 +27,29 @@ export function CollectSourcesPanel() {
   const [logs, setLogs] = useState<CollectLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  async function load() {
+  function statusLabel(status: string | null | undefined): string {
+    if (status === "success") return t("collect.success");
+    if (status === "failed") return t("collect.failed");
+    if (status === "running") return t("collect.runStatus");
+    if (status === "queued") return t("collect.queued");
+    return status ?? t("common.dash");
+  }
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       setSources(await fetchCollectSources());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "加载失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "common.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [locale]);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -64,7 +67,7 @@ export function CollectSourcesPanel() {
       setCronExpr("0 8 * * *");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "创建失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "collect.createFailed"));
     }
   }
 
@@ -73,7 +76,7 @@ export function CollectSourcesPanel() {
       await updateCollectSource(source.id, { is_enabled: !source.is_enabled });
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "更新失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "collect.updateFailed"));
     }
   }
 
@@ -83,7 +86,7 @@ export function CollectSourcesPanel() {
       if (expandedId === id) setExpandedId(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "collect.deleteFailed"));
     }
   }
 
@@ -98,7 +101,7 @@ export function CollectSourcesPanel() {
         await loadLogs(id);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "采集失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "collect.collectFailed"));
     } finally {
       setRunningId(null);
     }
@@ -109,7 +112,7 @@ export function CollectSourcesPanel() {
     try {
       setLogs(await fetchCollectLogs(sourceId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "日志加载失败");
+      setError(localizeError(locale, err instanceof Error ? err.message : null, "collect.logsFailed"));
     } finally {
       setLogsLoading(false);
     }
@@ -127,19 +130,17 @@ export function CollectSourcesPanel() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">采集源管理</h1>
-        <p className="mt-1 text-sm text-zinc-600">
-          配置 RSS 采集源，定时或手动抓取研报 PDF 并自动入库。
-        </p>
+        <h1 className="text-2xl font-bold">{t("collect.title")}</h1>
+        <p className="mt-1 text-sm text-zinc-600">{t("collect.hint")}</p>
       </div>
 
       <form onSubmit={handleCreate} className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-semibold">新增采集源</h2>
+        <h2 className="text-sm font-semibold">{t("collect.addTitle")}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="名称（如 某券商 RSS）"
+            placeholder={t("collect.namePlaceholder")}
             className="h-10 rounded-lg border border-zinc-300 px-3 text-sm"
             required
           />
@@ -154,14 +155,14 @@ export function CollectSourcesPanel() {
         <input
           value={cronExpr}
           onChange={(e) => setCronExpr(e.target.value)}
-          placeholder="Cron 表达式（默认 0 8 * * * 每天 8 点）"
+          placeholder={t("collect.cronPlaceholder")}
           className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
         />
         <button
           type="submit"
           className="h-9 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
         >
-          添加采集源
+          {t("collect.add")}
         </button>
       </form>
 
@@ -171,7 +172,7 @@ export function CollectSourcesPanel() {
         <ListSkeleton rows={5} />
       ) : sources.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 py-12 text-center text-zinc-500">
-          暂无采集源，请先添加 RSS 源
+          {t("collect.empty")}
         </p>
       ) : (
         <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
@@ -182,11 +183,11 @@ export function CollectSourcesPanel() {
                   <p className="font-medium">{source.name}</p>
                   <p className="mt-1 truncate text-zinc-500">{source.url}</p>
                   <p className="mt-1 text-xs text-zinc-400">
-                    Cron: {source.cron_expr} · 上次:{" "}
+                    Cron: {source.cron_expr} · {t("collect.lastRun")}:{" "}
                     {source.last_run_at
-                      ? new Date(source.last_run_at).toLocaleString("zh-CN")
-                      : "未运行"}{" "}
-                    · 状态: {STATUS_LABEL[source.last_status ?? ""] ?? source.last_status ?? "—"}
+                      ? new Date(source.last_run_at).toLocaleString(locale === "en" ? "en-US" : "zh-CN")
+                      : t("collect.never")}{" "}
+                    · {t("collect.status")}: {statusLabel(source.last_status)}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -198,44 +199,47 @@ export function CollectSourcesPanel() {
                         : "bg-zinc-100 text-zinc-600"
                     }`}
                   >
-                    {source.is_enabled ? "已启用" : "已停用"}
+                    {source.is_enabled ? t("collect.enabled") : t("collect.disabled")}
                   </button>
                   <button
                     onClick={() => void handleRun(source.id)}
                     disabled={runningId === source.id}
                     className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
                   >
-                    {runningId === source.id ? "采集中..." : "立即采集"}
+                    {runningId === source.id ? t("collect.running") : t("collect.runNow")}
                   </button>
                   <button
                     onClick={() => void toggleLogs(source.id)}
                     className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
                   >
-                    日志
+                    {t("collect.logs")}
                   </button>
                   <button
                     onClick={() => void handleDelete(source.id)}
                     className="text-xs text-zinc-500 hover:text-red-600"
                   >
-                    删除
+                    {t("collect.delete")}
                   </button>
                 </div>
               </div>
 
               {expandedId === source.id && (
                 <div className="mt-3 rounded-lg bg-zinc-50 p-3">
-                  <p className="mb-2 text-xs font-semibold text-zinc-600">采集日志</p>
+                  <p className="mb-2 text-xs font-semibold text-zinc-600">{t("collect.logTitle")}</p>
                   {logsLoading ? (
-                    <p className="text-xs text-zinc-500">加载中...</p>
+                    <p className="text-xs text-zinc-500">{t("common.loading")}</p>
                   ) : logs.length === 0 ? (
-                    <p className="text-xs text-zinc-500">暂无日志</p>
+                    <p className="text-xs text-zinc-500">{t("collect.noLogs")}</p>
                   ) : (
                     <ul className="space-y-2">
                       {logs.map((log) => (
                         <li key={log.id} className="text-xs text-zinc-600">
-                          {new Date(log.started_at).toLocaleString("zh-CN")} ·{" "}
-                          {STATUS_LABEL[log.status] ?? log.status} · 发现 {log.items_found} · 新增{" "}
-                          {log.items_new}
+                          {new Date(log.started_at).toLocaleString(locale === "en" ? "en-US" : "zh-CN")} ·{" "}
+                          {t("collect.logLine", {
+                            status: statusLabel(log.status),
+                            found: log.items_found,
+                            imported: log.items_new,
+                          })}
                           {log.error && (
                             <span className="ml-1 text-red-600">({log.error})</span>
                           )}

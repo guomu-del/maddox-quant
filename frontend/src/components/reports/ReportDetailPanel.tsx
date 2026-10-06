@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 
 import { AnalysisPanel } from "@/components/reports/AnalysisPanel";
 import { QuickWatchButtons } from "@/components/reports/QuickWatchButtons";
+import { localizeError, useLocale } from "@/i18n/locale";
 import { fetchReport, getReportFileUrl } from "@/lib/reports-api";
 import type { Report, ReportTable } from "@/types/report";
 
 function PdfPreview({ reportId }: { reportId: number }) {
+  const { locale, t } = useLocale();
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,7 @@ function PdfPreview({ reportId }: { reportId: number }) {
       try {
         const response = await fetch(getReportFileUrl(reportId));
         if (!response.ok) {
-          throw new Error("无法加载 PDF 文件");
+          throw new Error(t("error.pdfMissing"));
         }
         const blob = await response.blob();
         const pdfBlob =
@@ -29,7 +31,7 @@ function PdfPreview({ reportId }: { reportId: number }) {
         if (!cancelled) setUrl(objectUrl);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "无法加载 PDF 文件");
+          setError(localizeError(locale, err instanceof Error ? err.message : null, "error.pdfMissing"));
         }
       }
     }
@@ -45,7 +47,7 @@ function PdfPreview({ reportId }: { reportId: number }) {
     return <div className="p-8 text-center text-red-600">{error}</div>;
   }
   if (!url) {
-    return <div className="p-8 text-center text-zinc-500">正在加载 PDF...</div>;
+    return <div className="p-8 text-center text-zinc-500">{t("reports.pdfLoading")}</div>;
   }
 
   return (
@@ -58,6 +60,7 @@ function PdfPreview({ reportId }: { reportId: number }) {
 }
 
 function ExtractedTable({ rows }: { rows: string[][] }) {
+  const { t } = useLocale();
   const [header, ...body] = rows;
   return (
     <div className="my-4 overflow-x-auto rounded-lg border border-zinc-200">
@@ -66,7 +69,7 @@ function ExtractedTable({ rows }: { rows: string[][] }) {
           <tr>
             {header.map((cell, index) => (
               <th key={index} className="whitespace-nowrap px-3 py-2 font-medium">
-                {cell || "—"}
+                {cell || t("common.dash")}
               </th>
             ))}
           </tr>
@@ -76,7 +79,7 @@ function ExtractedTable({ rows }: { rows: string[][] }) {
             <tr key={rowIndex} className="border-t border-zinc-100">
               {header.map((_, colIndex) => (
                 <td key={colIndex} className="whitespace-nowrap px-3 py-2 text-zinc-800">
-                  {row[colIndex] || "—"}
+                  {row[colIndex] || t("common.dash")}
                 </td>
               ))}
             </tr>
@@ -88,11 +91,12 @@ function ExtractedTable({ rows }: { rows: string[][] }) {
 }
 
 function FullTextView({ report }: { report: Report }) {
+  const { t } = useLocale();
   const tables = report.tables ?? [];
   const pages = (report.full_text || report.summary || "").split("\f");
   const hasText = pages.some((page) => page.trim());
   if (!hasText && tables.length === 0) {
-    return <p className="text-sm text-zinc-500">暂无文本内容（可能仍在解析中）</p>;
+    return <p className="text-sm text-zinc-500">{t("reports.noText")}</p>;
   }
 
   const tablesByPage = new Map<number, ReportTable[]>();
@@ -114,7 +118,7 @@ function FullTextView({ report }: { report: Report }) {
         return (
           <section key={page}>
             {pageCount > 1 ? (
-              <h3 className="mb-2 text-xs font-medium tracking-wide text-zinc-400">第 {page} 页</h3>
+              <h3 className="mb-2 text-xs font-medium tracking-wide text-zinc-400">{t("reports.page", { page })}</h3>
             ) : null}
             {text.trim() ? <div className="whitespace-pre-wrap">{text.trim()}</div> : null}
             {pageTables.map((table, tableIndex) => (
@@ -128,6 +132,7 @@ function FullTextView({ report }: { report: Report }) {
 }
 
 export function ReportDetailPanel({ reportId }: { reportId: number }) {
+  const { locale, t, joinList } = useLocale();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,7 +148,7 @@ export function ReportDetailPanel({ reportId }: { reportId: number }) {
         const data = await fetchReport(reportId);
         if (!cancelled) setReport(data);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "加载失败");
+        if (!cancelled) setError(localizeError(locale, err instanceof Error ? err.message : null, "common.loadFailed"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -161,27 +166,27 @@ export function ReportDetailPanel({ reportId }: { reportId: number }) {
   }, [reportId, report?.status]);
 
   if (loading && !report) {
-    return <div className="p-8 text-center text-zinc-500">加载中...</div>;
+    return <div className="p-8 text-center text-zinc-500">{t("common.loading")}</div>;
   }
 
   if (error || !report) {
-    return <div className="p-8 text-center text-red-600">{error ?? "研报不存在"}</div>;
+    return <div className="p-8 text-center text-red-600">{error ?? t("reports.missing")}</div>;
   }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Link href="/reports" className="text-sm text-zinc-600 hover:text-zinc-900">
-        ← 返回列表
+        {t("common.back")}
       </Link>
 
       <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-6">
         <h1 className="text-2xl font-bold">{report.title}</h1>
         <div className="mt-3 flex flex-wrap gap-3 text-sm text-zinc-600">
-          {report.source && <span>来源：{report.source}</span>}
-          {report.author && <span>作者：{report.author}</span>}
-          {report.publish_date && <span>日期：{report.publish_date}</span>}
-          {report.industries?.length ? <span>行业：{report.industries.join("、")}</span> : null}
-          {report.stocks?.length ? <span>个股：{report.stocks.join("、")}</span> : null}
+          {report.source && <span>{t("reports.sourceLabel")}{report.source}</span>}
+          {report.author && <span>{t("reports.authorLabel")}{report.author}</span>}
+          {report.publish_date && <span>{t("reports.dateLabel")}{report.publish_date}</span>}
+          {report.industries?.length ? <span>{t("reports.industryLabel")}{joinList(report.industries)}</span> : null}
+          {report.stocks?.length ? <span>{t("reports.stockLabel")}{joinList(report.stocks)}</span> : null}
         </div>
         <QuickWatchButtons industries={report.industries ?? []} stocks={report.stocks ?? []} />
       </div>
@@ -196,7 +201,7 @@ export function ReportDetailPanel({ reportId }: { reportId: number }) {
               tab === key ? "border-b-2 border-zinc-900 text-zinc-900" : "text-zinc-500"
             }`}
           >
-            {key === "preview" ? "PDF 预览" : key === "text" ? "全文" : "AI 分析"}
+            {key === "preview" ? t("reports.tabPreview") : key === "text" ? t("reports.tabText") : t("reports.tabAnalysis")}
           </button>
         ))}
       </div>

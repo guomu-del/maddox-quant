@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { useLocale } from "@/i18n/locale";
+
 export default function Error({
   error,
   reset,
@@ -9,19 +11,21 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useLocale();
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center">
-      <h2 className="text-xl font-semibold text-zinc-900">页面加载出错</h2>
-      <p className="mt-2 text-sm text-zinc-600">{error.message || "发生了未知错误"}</p>
+      <h2 className="text-xl font-semibold text-zinc-900">{t("error.pageTitle")}</h2>
+      <p className="mt-2 text-sm text-zinc-600">{error.message || t("error.unknown")}</p>
       <button
         onClick={reset}
         className="mt-6 h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
       >
-        重试
+        {t("common.retry")}
       </button>
     </div>
   );
