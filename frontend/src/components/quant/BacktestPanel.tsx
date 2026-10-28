@@ -36,6 +36,26 @@ function percent(value: number): string {
   return `${(value * 100).toFixed(2)}%`;
 }
 
+function MetricHint({ text }: { text: string }) {
+  return (
+    <span className="group relative ml-1 inline-flex align-middle">
+      <button
+        type="button"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-zinc-400 text-[10px] font-semibold leading-none text-zinc-500 hover:border-zinc-700 hover:text-zinc-800 focus:border-zinc-700 focus:outline-none"
+        aria-label={text}
+      >
+        ?
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-0 top-full z-30 mt-1 w-56 rounded-md bg-zinc-900 px-2.5 py-2 text-left text-[11px] font-normal leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
 export function BacktestPanel({ code }: { code: string }) {
   const { locale, t } = useLocale();
   const dates = defaultDates();
@@ -45,6 +65,7 @@ export function BacktestPanel({ code }: { code: string }) {
   const [start, setStart] = useState(dates.start);
   const [end, setEnd] = useState(dates.end);
   const [cash, setCash] = useState("1000000");
+  const [pairCode, setPairCode] = useState("");
   const [runs, setRuns] = useState<BacktestRun[]>([]);
   const [run, setRun] = useState<BacktestRun | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,8 +79,16 @@ export function BacktestPanel({ code }: { code: string }) {
   function strategyLabel(id: string, fallback?: string): string {
     if (id === "dual_ma") return t("quant.dualMa");
     if (id === "breakout") return t("quant.breakout");
+    if (id === "trend") return t("quant.trend");
+    if (id === "mean_reversion") return t("quant.meanReversion");
+    if (id === "multi_factor") return t("quant.multiFactor");
+    if (id === "pairs") return t("quant.pairs");
     return fallback ?? id;
   }
+
+  const cashAmount = Number(cash);
+  const cashValid = Number.isFinite(cashAmount) && cashAmount > 0;
+  const pairReady = strategyId !== "pairs" || /^\d{6}$/.test(pairCode.trim());
 
   const loadHistory = useCallback(async () => {
     const nextRuns = await fetchBacktests(20);
@@ -111,7 +140,8 @@ export function BacktestPanel({ code }: { code: string }) {
         params,
         start,
         end,
-        cash: Number(cash),
+        cash: cashAmount,
+        ...(strategyId === "pairs" ? { pair_code: pairCode.trim() } : {}),
       });
       setRun(nextRun);
       await loadHistory();
@@ -133,12 +163,12 @@ export function BacktestPanel({ code }: { code: string }) {
 
   const metricItems = run?.metrics
     ? [
-        [t("quant.totalReturn"), percent(run.metrics.total_return)],
-        [t("quant.annualReturn"), percent(run.metrics.annual_return)],
-        [t("quant.maxDrawdown"), percent(run.metrics.max_drawdown)],
-        [t("quant.winRate"), percent(run.metrics.win_rate)],
-        [t("quant.profitFactor"), number(run.metrics.profit_factor)],
-        [t("quant.tradeCount"), String(run.metrics.trade_count)],
+        [t("quant.totalReturn"), percent(run.metrics.total_return), t("quant.hintTotalReturn")],
+        [t("quant.annualReturn"), percent(run.metrics.annual_return), t("quant.hintAnnualReturn")],
+        [t("quant.maxDrawdown"), percent(run.metrics.max_drawdown), t("quant.hintMaxDrawdown")],
+        [t("quant.winRate"), percent(run.metrics.win_rate), t("quant.hintWinRate")],
+        [t("quant.profitFactor"), number(run.metrics.profit_factor), t("quant.hintProfitFactor")],
+        [t("quant.tradeCount"), String(run.metrics.trade_count), t("quant.hintTradeCount")],
       ]
     : [];
 
@@ -173,21 +203,36 @@ export function BacktestPanel({ code }: { code: string }) {
               ))}
             </select>
           </label>
-          {Object.entries(params).map(([key, value]) => (
-            <label key={`${strategyId}-${key}`} className="text-sm">
-              <span className="mb-1 block text-zinc-600">{t("quant.param", { key })}</span>
+          {Object.entries(params).map(([key, value]) => {
+            const decimal = key.endsWith("_z");
+            return (
+              <label key={`${strategyId}-${key}`} className="text-sm">
+                <span className="mb-1 block text-zinc-600">{t("quant.param", { key })}</span>
+                <input
+                  type="number"
+                  min={decimal ? "0.01" : "1"}
+                  step={decimal ? "any" : "1"}
+                  value={value}
+                  onChange={(event) =>
+                    setParams((current) => ({ ...current, [key]: Number(event.target.value) }))
+                  }
+                  className="h-10 w-full rounded-lg border border-zinc-300 px-3"
+                />
+              </label>
+            );
+          })}
+          {strategyId === "pairs" ? (
+            <label className="text-sm">
+              <span className="mb-1 block text-zinc-600">{t("quant.pairCode")}</span>
               <input
-                type="number"
-                min="1"
-                step="1"
-                value={value}
-                onChange={(event) =>
-                  setParams((current) => ({ ...current, [key]: Number(event.target.value) }))
-                }
+                value={pairCode}
+                onChange={(event) => setPairCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder={t("quant.pairPlaceholder")}
+                inputMode="numeric"
                 className="h-10 w-full rounded-lg border border-zinc-300 px-3"
               />
             </label>
-          ))}
+          ) : null}
           <label className="text-sm">
             <span className="mb-1 block text-zinc-600">{t("quant.startDate")}</span>
             <input
@@ -210,8 +255,8 @@ export function BacktestPanel({ code }: { code: string }) {
             <span className="mb-1 block text-zinc-600">{t("quant.initCash")}</span>
             <input
               type="number"
-              min="1"
-              step="10000"
+              min="0.01"
+              step="any"
               value={cash}
               onChange={(event) => setCash(event.target.value)}
               className="h-10 w-full rounded-lg border border-zinc-300 px-3"
@@ -221,12 +266,13 @@ export function BacktestPanel({ code }: { code: string }) {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            disabled={!code || submitting || Number(cash) <= 0}
+            disabled={!code || submitting || !cashValid || !pairReady}
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? t("quant.backtestRunning") : t("quant.runBacktest")}
           </button>
           {!code ? <span className="text-sm text-amber-700">{t("quant.pickCode")}</span> : null}
+          {code && !pairReady ? <span className="text-sm text-amber-700">{t("quant.pickPair")}</span> : null}
           {error ? <span className="text-sm text-red-600">{error}</span> : null}
         </div>
       </form>
@@ -271,9 +317,12 @@ export function BacktestPanel({ code }: { code: string }) {
           <section className="rounded-xl border border-zinc-200 bg-white p-5">
             <h3 className="text-sm font-semibold">{t("quant.metrics")}</h3>
             <dl className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {metricItems.map(([label, value]) => (
-                <div key={label} className="rounded-lg bg-zinc-100 px-4 py-3">
-                  <dt className="text-xs text-zinc-500">{label}</dt>
+              {metricItems.map(([label, value, hint]) => (
+                <div key={label} className="overflow-visible rounded-lg bg-zinc-100 px-4 py-3">
+                  <dt className="flex items-center text-xs text-zinc-500">
+                    {label}
+                    <MetricHint text={hint} />
+                  </dt>
                   <dd className="mt-1 text-lg font-semibold">{value}</dd>
                 </div>
               ))}
@@ -327,7 +376,10 @@ export function BacktestPanel({ code }: { code: string }) {
                   className="flex w-full items-center justify-between gap-4 py-3 text-left text-sm hover:text-zinc-600"
                 >
                   <span>
-                    {item.code} · {strategyLabel(item.strategy_id)} · {item.start} {t("quant.rangeTo")} {item.end}
+                    {item.code}
+                    {typeof item.params?.pair_code === "string" ? `/${item.params.pair_code}` : ""}
+                    {" · "}
+                    {strategyLabel(item.strategy_id)} · {item.start} {t("quant.rangeTo")} {item.end}
                   </span>
                   <span className="shrink-0 text-zinc-500">
                     {item.metrics ? percent(item.metrics.total_return) : t("common.dash")}

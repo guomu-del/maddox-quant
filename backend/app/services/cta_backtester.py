@@ -2,7 +2,14 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.schemas.market import KlineBar
-from app.services.cta_strategies import breakout_signal, dual_ma_signal
+from app.services.cta_strategies import (
+    breakout_signal,
+    dual_ma_signal,
+    mean_reversion_signal,
+    multi_factor_signal,
+    pairs_signal,
+    trend_signal,
+)
 from app.services.trading_fees import commission, stamp_tax
 
 
@@ -36,6 +43,54 @@ class BacktestResult:
     metrics: dict
 
 
+def _strategy_signal(
+    *,
+    strategy_id: str,
+    params: dict,
+    visible: list[KlineBar],
+    pair_close_by_date: dict,
+) -> str | None:
+    closes = [item.close for item in visible]
+    if strategy_id == "dual_ma":
+        return dual_ma_signal(
+            closes,
+            fast=int(params.get("fast", 5)),
+            slow=int(params.get("slow", 20)),
+        )
+    if strategy_id == "breakout":
+        return breakout_signal(
+            [item.high for item in visible],
+            [item.low for item in visible],
+            closes,
+            n=int(params.get("n", 20)),
+        )
+    if strategy_id == "trend":
+        return trend_signal(closes, n=int(params.get("n", 20)))
+    if strategy_id == "mean_reversion":
+        return mean_reversion_signal(
+            closes,
+            lookback=int(params.get("lookback", 20)),
+            entry_z=float(params.get("entry_z", 1.5)),
+        )
+    if strategy_id == "multi_factor":
+        return multi_factor_signal(closes, lookback=int(params.get("lookback", 20)))
+    if strategy_id == "pairs":
+        aligned_a: list[float] = []
+        aligned_b: list[float] = []
+        for item in visible:
+            other = pair_close_by_date.get(item.date)
+            if other is not None and other > 0:
+                aligned_a.append(item.close)
+                aligned_b.append(other)
+        return pairs_signal(
+            aligned_a,
+            aligned_b,
+            lookback=int(params.get("lookback", 20)),
+            entry_z=float(params.get("entry_z", 2)),
+        )
+    raise ValueError(f"unknown strategy: {strategy_id}")
+
+
 def run_backtest(
     *,
     code: str,
@@ -45,6 +100,7 @@ def run_backtest(
     end: date,
     cash: float,
     bars: list[KlineBar],
+    pair_bars: list[KlineBar] | None = None,
 ) -> BacktestResult:
     initial_cash = float(cash)
     available_cash = initial_cash
@@ -55,6 +111,9 @@ def run_backtest(
     equity: list[dict] = []
     round_trip_profits: list[float] = []
     hold_values = _buy_and_hold_values(bars, initial_cash)
+    if strategy_id == "pairs" and not pair_bars:
+        raise ValueError("pairs strategy requires pair bars")
+    pair_close_by_date = {item.date: item.close for item in pair_bars or []}
 
     for index, bar in enumerate(bars):
         if pending_intent == "buy" and position == 0:
@@ -99,23 +158,12 @@ def run_backtest(
             )
         pending_intent = None
 
-        closes = [item.close for item in bars[: index + 1]]
-        if strategy_id == "dual_ma":
-            signal = dual_ma_signal(
-                closes,
-                fast=int(params.get("fast", 5)),
-                slow=int(params.get("slow", 20)),
-            )
-        elif strategy_id == "breakout":
-            visible = bars[: index + 1]
-            signal = breakout_signal(
-                [item.high for item in visible],
-                [item.low for item in visible],
-                closes,
-                n=int(params.get("n", 20)),
-            )
-        else:
-            raise ValueError(f"unknown strategy: {strategy_id}")
+        signal = _strategy_signal(
+            strategy_id=strategy_id,
+            params=params,
+            visible=bars[: index + 1],
+            pair_close_by_date=pair_close_by_date,
+        )
 
         if index < len(bars) - 1:
             if signal == "buy" and position == 0:

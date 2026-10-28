@@ -25,6 +25,26 @@ STRATEGIES = [
         "name": "唐奇安突破",
         "params": {"n": 20},
     },
+    {
+        "id": "trend",
+        "name": "趋势跟踪",
+        "params": {"n": 20},
+    },
+    {
+        "id": "mean_reversion",
+        "name": "均值回归",
+        "params": {"lookback": 20, "entry_z": 1.5},
+    },
+    {
+        "id": "multi_factor",
+        "name": "多因子选股",
+        "params": {"lookback": 20},
+    },
+    {
+        "id": "pairs",
+        "name": "统计套利与配对交易",
+        "params": {"lookback": 20, "entry_z": 2},
+    },
 ]
 STRATEGY_DEFAULTS = {item["id"]: item["params"] for item in STRATEGIES}
 
@@ -60,6 +80,28 @@ def create_backtest(payload: BacktestCreate, db: Session = Depends(get_db)):
             status_code=400,
         )
     params = {**defaults, **payload.params}
+    pair_code = payload.pair_code
+    pair_bars = None
+    if payload.strategy_id == "pairs":
+        if not pair_code:
+            raise AppError(
+                "配对交易需要配对代码",
+                code="pair_code_required",
+                status_code=400,
+            )
+        if pair_code == payload.code:
+            raise AppError(
+                "配对代码不能与标的相同",
+                code="invalid_pair_code",
+                status_code=400,
+            )
+        params["pair_code"] = pair_code
+        pair_bars = market_service.get_kline(
+            pair_code,
+            start=start,
+            end=end,
+            limit=800,
+        ).items
     kline = market_service.get_kline(
         payload.code,
         start=start,
@@ -75,6 +117,7 @@ def create_backtest(payload: BacktestCreate, db: Session = Depends(get_db)):
             end=end,
             cash=payload.cash,
             bars=kline.items,
+            pair_bars=pair_bars,
         )
     except (TypeError, ValueError) as exc:
         raise AppError(

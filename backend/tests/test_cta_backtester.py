@@ -126,3 +126,33 @@ def test_equity_includes_buy_and_hold_benchmark():
     assert result.equity[-1]["hold"] == leftover + quantity * bars[-1].close
     assert result.equity[0]["value"] == cash
     assert result.equity[-1]["hold"] != result.equity[0]["hold"]
+
+
+def test_backtest_uses_submitted_cash_as_starting_equity():
+    bars = _bars()
+    cash = 12_345.67
+    result = run_backtest(
+        code="600519",
+        strategy_id="trend",
+        params={"n": 20},
+        start=bars[0].date,
+        end=bars[-1].date,
+        cash=cash,
+        bars=bars,
+    )
+    assert result.equity[0]["value"] == cash
+
+
+def test_trend_backtest_is_a_known_strategy():
+    bars = _bars()
+    result = run_backtest(
+        code="600519",
+        strategy_id="trend",
+        params={"n": 5},
+        start=bars[0].date,
+        end=bars[-1].date,
+        cash=50_000,
+        bars=bars,
+    )
+    assert result.equity
+    assert result.equity[0]["value"] == 50_000

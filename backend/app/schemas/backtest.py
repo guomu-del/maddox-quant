@@ -5,17 +5,18 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class BacktestCreate(BaseModel):
     code: str = Field(pattern=r"^\d{6}$")
+    pair_code: str | None = Field(default=None, pattern=r"^\d{6}$")
     strategy_id: str
-    params: dict[str, int | float] = Field(default_factory=dict)
+    params: dict[str, int | float | str] = Field(default_factory=dict)
     start: date | None = None
     end: date | None = None
-    cash: float = Field(default=1_000_000, gt=0)
+    cash: float = Field(gt=0)
 
 
 class StrategyInfo(BaseModel):
     id: str
     name: str
-    params: dict[str, int]
+    params: dict[str, int | float]
 
 
 class BacktestResponse(BaseModel):

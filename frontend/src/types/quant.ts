@@ -47,7 +47,7 @@ export interface PaperPosition {
 }
 
 export interface BacktestStrategy {
-  id: "dual_ma" | "breakout";
+  id: string;
   name: string;
   params: Record<string, number>;
 }
@@ -81,7 +81,7 @@ export interface BacktestRun {
   id: number;
   code: string;
   strategy_id: string;
-  params: Record<string, number>;
+  params: Record<string, number | string>;
   start: string;
   end: string;
   cash: number;

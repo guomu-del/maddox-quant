@@ -40,6 +40,7 @@ export function submitBacktest(body: {
   start: string;
   end: string;
   cash: number;
+  pair_code?: string;
 }): Promise<BacktestRun> {
   return json("/api/quant/backtests", {
     method: "POST",

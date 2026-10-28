@@ -64,6 +64,8 @@ const ERROR_KEY_BY_TEXT: Record<string, MessageKey> = {
   "Failed to load": "common.loadFailed",
   "未知回测策略": "error.invalidStrategy",
   "Unknown backtest strategy": "error.invalidStrategy",
+  "配对交易需要配对代码": "error.pairRequired",
+  "配对代码不能与标的相同": "error.invalidPair",
   "该 PDF 已存在": "error.duplicateReport",
 };
 

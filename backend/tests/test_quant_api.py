@@ -30,18 +30,21 @@ def test_strategies_returns_builtin_catalog(client):
     response = client.get("/api/quant/strategies")
 
     assert response.status_code == 200
-    assert response.json() == [
-        {
-            "id": "dual_ma",
-            "name": "双均线",
-            "params": {"fast": 5, "slow": 20},
-        },
-        {
-            "id": "breakout",
-            "name": "唐奇安突破",
-            "params": {"n": 20},
-        },
+    body = response.json()
+    ids = [item["id"] for item in body]
+    assert ids == [
+        "dual_ma",
+        "breakout",
+        "trend",
+        "mean_reversion",
+        "multi_factor",
+        "pairs",
     ]
+    by_id = {item["id"]: item for item in body}
+    assert by_id["trend"]["params"] == {"n": 20}
+    assert by_id["mean_reversion"]["params"] == {"lookback": 20, "entry_z": 1.5}
+    assert by_id["multi_factor"]["params"] == {"lookback": 20}
+    assert by_id["pairs"]["params"] == {"lookback": 20, "entry_z": 2}
 
 
 def test_backtest_persists_run_without_writing_paper_trades(
