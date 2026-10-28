@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { localizeError, useLocale } from "@/i18n/locale";
+import type { MessageKey } from "@/i18n/messages";
 import {
   fetchBacktest,
   fetchBacktests,
@@ -35,6 +36,41 @@ function defaultDates(): { start: string; end: string } {
 function percent(value: number): string {
   return `${(value * 100).toFixed(2)}%`;
 }
+
+const FIELD_CLASS = "h-8 w-full rounded-md border border-zinc-300 px-2 text-sm";
+const DECIMAL_PARAM_KEYS = new Set(["entry_z", "k", "m", "entry"]);
+const PARAM_LABELS: Record<string, MessageKey> = {
+  fast: "quant.pFast",
+  slow: "quant.pSlow",
+  n: "quant.pN",
+  signal: "quant.pSignal",
+  lookback: "quant.pLookback",
+  entry_z: "quant.pEntryZ",
+  entry_n: "quant.pEntryN",
+  exit_n: "quant.pExitN",
+  k: "quant.pK",
+  m: "quant.pM",
+  oversold: "quant.pOversold",
+  overbought: "quant.pOverbought",
+  entry: "quant.pEntry",
+  low: "quant.pLow",
+  high: "quant.pHigh",
+};
+const STRATEGY_GUIDES: Record<string, { logic: MessageKey; params: MessageKey; example: MessageKey }> = {
+  dual_ma: { logic: "quant.guideDualMaLogic", params: "quant.guideDualMaParams", example: "quant.guideDualMaExample" },
+  breakout: { logic: "quant.guideBreakoutLogic", params: "quant.guideBreakoutParams", example: "quant.guideBreakoutExample" },
+  trend: { logic: "quant.guideTrendLogic", params: "quant.guideTrendParams", example: "quant.guideTrendExample" },
+  mean_reversion: { logic: "quant.guideMeanReversionLogic", params: "quant.guideMeanReversionParams", example: "quant.guideMeanReversionExample" },
+  multi_factor: { logic: "quant.guideMultiFactorLogic", params: "quant.guideMultiFactorParams", example: "quant.guideMultiFactorExample" },
+  pairs: { logic: "quant.guidePairsLogic", params: "quant.guidePairsParams", example: "quant.guidePairsExample" },
+  macd: { logic: "quant.guideMacdLogic", params: "quant.guideMacdParams", example: "quant.guideMacdExample" },
+  turtle: { logic: "quant.guideTurtleLogic", params: "quant.guideTurtleParams", example: "quant.guideTurtleExample" },
+  bollinger: { logic: "quant.guideBollingerLogic", params: "quant.guideBollingerParams", example: "quant.guideBollingerExample" },
+  rsi: { logic: "quant.guideRsiLogic", params: "quant.guideRsiParams", example: "quant.guideRsiExample" },
+  bias: { logic: "quant.guideBiasLogic", params: "quant.guideBiasParams", example: "quant.guideBiasExample" },
+  kdj: { logic: "quant.guideKdjLogic", params: "quant.guideKdjParams", example: "quant.guideKdjExample" },
+  atr: { logic: "quant.guideAtrLogic", params: "quant.guideAtrParams", example: "quant.guideAtrExample" },
+};
 
 function MetricHint({ text }: { text: string }) {
   return (
@@ -86,6 +122,13 @@ export function BacktestPanel({ code }: { code: string }) {
     if (id === "mean_reversion") return t("quant.meanReversion");
     if (id === "multi_factor") return t("quant.multiFactor");
     if (id === "pairs") return t("quant.pairs");
+    if (id === "macd") return t("quant.macd");
+    if (id === "turtle") return t("quant.turtle");
+    if (id === "bollinger") return t("quant.bollinger");
+    if (id === "rsi") return t("quant.rsi");
+    if (id === "bias") return t("quant.bias");
+    if (id === "kdj") return t("quant.kdj");
+    if (id === "atr") return t("quant.atr");
     return fallback ?? id;
   }
 
@@ -197,137 +240,163 @@ export function BacktestPanel({ code }: { code: string }) {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={runBacktest} className="rounded-xl border border-zinc-200 bg-white p-5">
+      <form onSubmit={runBacktest} className="rounded-xl border border-zinc-200 bg-white p-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
             {t("quant.backtestHint")}
           </p>
-          <h2 className="mt-1 text-xl font-semibold">
+          <h2 className="mt-1 text-lg font-semibold">
             {t("quant.ctaBacktest")}{" "}
             <span className="text-sm font-normal text-zinc-500">{code || t("quant.noStock")}</span>
           </h2>
         </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.strategy")}</span>
-            <select
-              value={strategyId}
-              onChange={(event) => changeStrategy(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3"
-            >
-              {strategyOptions.map((strategy) => (
-                <option key={strategy.id} value={strategy.id}>
-                  {strategyLabel(strategy.id, strategy.name)}
-                </option>
-              ))}
-            </select>
-          </label>
-          {strategyParamEntries.map(([key, value]) => {
-            const decimal = key.endsWith("_z");
-            return (
-              <label key={`${strategyId}-${key}`} className="text-sm">
-                <span className="mb-1 block text-zinc-600">{t("quant.param", { key })}</span>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <div className="space-y-2">
+            <label className="block text-xs">
+              <span className="mb-0.5 block text-zinc-600">{t("quant.strategy")}</span>
+              <select
+                value={strategyId}
+                onChange={(event) => changeStrategy(event.target.value)}
+                className={`${FIELD_CLASS} bg-white`}
+              >
+                {strategyOptions.map((strategy) => (
+                  <option key={strategy.id} value={strategy.id}>
+                    {strategyLabel(strategy.id, strategy.name)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {strategyParamEntries.map(([key, value]) => {
+                const decimal = DECIMAL_PARAM_KEYS.has(key);
+                return (
+                  <label key={`${strategyId}-${key}`} className="block text-xs">
+                    <span className="mb-0.5 block text-zinc-600">
+                      {PARAM_LABELS[key] ? t(PARAM_LABELS[key]) : t("quant.param", { key })}
+                    </span>
+                    <input
+                      type="number"
+                      min={decimal ? "0.01" : "1"}
+                      step={decimal ? "any" : "1"}
+                      value={value}
+                      onChange={(event) =>
+                        setParams((current) => ({ ...current, [key]: Number(event.target.value) }))
+                      }
+                      className={FIELD_CLASS}
+                    />
+                  </label>
+                );
+              })}
+              {strategyId === "pairs" ? (
+                <label className="col-span-2 block text-xs">
+                  <span className="mb-0.5 block text-zinc-600">{t("quant.pairCode")}</span>
+                  <input
+                    value={pairCode}
+                    onChange={(event) => setPairCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder={t("quant.pairPlaceholder")}
+                    inputMode="numeric"
+                    className={FIELD_CLASS}
+                  />
+                </label>
+              ) : null}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs">
+                <span className="mb-0.5 block text-zinc-600">{t("quant.startDate")}</span>
                 <input
-                  type="number"
-                  min={decimal ? "0.01" : "1"}
-                  step={decimal ? "any" : "1"}
-                  value={value}
-                  onChange={(event) =>
-                    setParams((current) => ({ ...current, [key]: Number(event.target.value) }))
-                  }
-                  className="h-10 w-full rounded-lg border border-zinc-300 px-3"
+                  type="date"
+                  value={start}
+                  onChange={(event) => setStart(event.target.value)}
+                  className={FIELD_CLASS}
                 />
               </label>
-            );
-          })}
-          {strategyId === "pairs" ? (
-            <label className="text-sm">
-              <span className="mb-1 block text-zinc-600">{t("quant.pairCode")}</span>
-              <input
-                value={pairCode}
-                onChange={(event) => setPairCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder={t("quant.pairPlaceholder")}
-                inputMode="numeric"
-                className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-              />
-            </label>
-          ) : null}
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.startDate")}</span>
-            <input
-              type="date"
-              value={start}
-              onChange={(event) => setStart(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.endDate")}</span>
-            <input
-              type="date"
-              value={end}
-              onChange={(event) => setEnd(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.initCash")}</span>
-            <input
-              type="number"
-              min="0.01"
-              step="any"
-              value={cash}
-              onChange={(event) => setCash(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.commissionPct")}</span>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={commissionPct}
-              onChange={(event) => setCommissionPct(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-            />
-            <span className="mt-1 block text-xs text-zinc-500">{t("quant.commissionHint")}</span>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.commissionMin")}</span>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={commissionMin}
-              onChange={(event) => setCommissionMin(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block text-zinc-600">{t("quant.stampTaxPct")}</span>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={stampTaxPct}
-              onChange={(event) => setStampTaxPct(event.target.value)}
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
-            />
-            <span className="mt-1 block text-xs text-zinc-500">{t("quant.stampTaxHint")}</span>
-          </label>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={!code || submitting || !cashValid || !feesValid || !pairReady}
-            className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {submitting ? t("quant.backtestRunning") : t("quant.runBacktest")}
-          </button>
-          {!code ? <span className="text-sm text-amber-700">{t("quant.pickCode")}</span> : null}
-          {code && !pairReady ? <span className="text-sm text-amber-700">{t("quant.pickPair")}</span> : null}
-          {error ? <span className="text-sm text-red-600">{error}</span> : null}
+              <label className="block text-xs">
+                <span className="mb-0.5 block text-zinc-600">{t("quant.endDate")}</span>
+                <input
+                  type="date"
+                  value={end}
+                  onChange={(event) => setEnd(event.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+              <label className="col-span-2 block text-xs">
+                <span className="mb-0.5 block text-zinc-600">{t("quant.initCash")}</span>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="any"
+                  value={cash}
+                  onChange={(event) => setCash(event.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="mb-0.5 block text-zinc-600">{t("quant.commissionPct")}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={commissionPct}
+                  onChange={(event) => setCommissionPct(event.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+              <label className="block text-xs">
+                <span className="mb-0.5 block text-zinc-600">{t("quant.commissionMin")}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={commissionMin}
+                  onChange={(event) => setCommissionMin(event.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+              <label className="col-span-2 block text-xs">
+                <span className="mb-0.5 block text-zinc-600">{t("quant.stampTaxPct")}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={stampTaxPct}
+                  onChange={(event) => setStampTaxPct(event.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+            </div>
+            <p className="text-[11px] leading-snug text-zinc-500">{t("quant.commissionHint")}</p>
+            <p className="text-[11px] leading-snug text-zinc-500">{t("quant.stampTaxHint")}</p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={!code || submitting || !cashValid || !feesValid || !pairReady}
+                className="rounded-md bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {submitting ? t("quant.backtestRunning") : t("quant.runBacktest")}
+              </button>
+              {!code ? <span className="text-xs text-amber-700">{t("quant.pickCode")}</span> : null}
+              {code && !pairReady ? <span className="text-xs text-amber-700">{t("quant.pickPair")}</span> : null}
+              {error ? <span className="text-xs text-red-600">{error}</span> : null}
+            </div>
+          </div>
+          <aside className="rounded-lg bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-700">
+            <h3 className="text-sm font-semibold text-zinc-900">
+              {t("quant.guideTitle")} · {strategyLabel(strategyId)}
+            </h3>
+            <p className="mt-2 text-[11px] text-zinc-500">{t("quant.guideFill")}</p>
+            {STRATEGY_GUIDES[strategyId] ? (
+              <>
+                <h4 className="mt-3 font-semibold text-zinc-800">{t("quant.guideLogic")}</h4>
+                <p className="mt-1">{t(STRATEGY_GUIDES[strategyId].logic)}</p>
+                <h4 className="mt-3 font-semibold text-zinc-800">{t("quant.guideParams")}</h4>
+                <p className="mt-1">{t(STRATEGY_GUIDES[strategyId].params)}</p>
+                <h4 className="mt-3 font-semibold text-zinc-800">{t("quant.guideExample")}</h4>
+                <p className="mt-1">{t(STRATEGY_GUIDES[strategyId].example)}</p>
+              </>
+            ) : null}
+          </aside>
         </div>
       </form>
 

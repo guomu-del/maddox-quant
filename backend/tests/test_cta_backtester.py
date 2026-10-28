@@ -227,3 +227,43 @@ def test_backtest_applies_custom_commission_and_stamp_tax():
     assert sell["cash"] == pytest.approx(
         buy["cash"] + sell_amount - sell["commission"] - sell["stamp_tax"]
     )
+
+
+@pytest.mark.parametrize(
+    ("strategy_id", "params"),
+    [
+        ("macd", {"fast": 12, "slow": 26, "signal": 9}),
+        ("turtle", {"entry_n": 20, "exit_n": 10}),
+        ("bollinger", {"n": 20, "k": 2}),
+        ("rsi", {"n": 14, "oversold": 30, "overbought": 70}),
+        ("bias", {"n": 20, "entry": 5}),
+        ("kdj", {"n": 9, "low": 20, "high": 80}),
+        ("atr", {"n": 14, "m": 2}),
+    ],
+)
+def test_new_indicator_strategies_run(strategy_id: str, params: dict):
+    start = date(2024, 1, 2)
+    closes = [10.0 + (index % 9) * 0.08 for index in range(80)]
+    bars = [
+        KlineBar(
+            date=start + timedelta(days=index),
+            open=close - 0.05,
+            high=close + 0.1,
+            low=close - 0.1,
+            close=close,
+            volume=1,
+            amount=close,
+        )
+        for index, close in enumerate(closes)
+    ]
+    result = run_backtest(
+        code="600519",
+        strategy_id=strategy_id,
+        params=params,
+        start=bars[0].date,
+        end=bars[-1].date,
+        cash=50_000,
+        bars=bars,
+    )
+    assert result.equity
+    assert result.equity[0]["value"] == 50_000

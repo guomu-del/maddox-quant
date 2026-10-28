@@ -45,6 +45,41 @@ STRATEGIES = [
         "name": "统计套利与配对交易",
         "params": {"lookback": 20, "entry_z": 2},
     },
+    {
+        "id": "macd",
+        "name": "MACD 金叉",
+        "params": {"fast": 12, "slow": 26, "signal": 9},
+    },
+    {
+        "id": "turtle",
+        "name": "海龟突破",
+        "params": {"entry_n": 20, "exit_n": 10},
+    },
+    {
+        "id": "bollinger",
+        "name": "布林带回归",
+        "params": {"n": 20, "k": 2},
+    },
+    {
+        "id": "rsi",
+        "name": "RSI 超买超卖",
+        "params": {"n": 14, "oversold": 30, "overbought": 70},
+    },
+    {
+        "id": "bias",
+        "name": "均线乖离",
+        "params": {"n": 20, "entry": 5},
+    },
+    {
+        "id": "kdj",
+        "name": "KDJ 低位金叉",
+        "params": {"n": 9, "low": 20, "high": 80},
+    },
+    {
+        "id": "atr",
+        "name": "ATR 通道",
+        "params": {"n": 14, "m": 2},
+    },
 ]
 STRATEGY_DEFAULTS = {item["id"]: item["params"] for item in STRATEGIES}
 

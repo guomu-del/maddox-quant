@@ -40,6 +40,13 @@ def test_strategies_returns_builtin_catalog(client):
         "mean_reversion",
         "multi_factor",
         "pairs",
+        "macd",
+        "turtle",
+        "bollinger",
+        "rsi",
+        "bias",
+        "kdj",
+        "atr",
     ]
     by_id = {item["id"]: item for item in body}
     assert by_id["trend"]["params"] == {"n": 20}

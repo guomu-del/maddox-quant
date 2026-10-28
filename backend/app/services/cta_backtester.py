@@ -3,12 +3,19 @@ from datetime import date
 
 from app.schemas.market import KlineBar
 from app.services.cta_strategies import (
+    atr_channel_signal,
+    bias_signal,
+    bollinger_signal,
     breakout_signal,
     dual_ma_signal,
+    kdj_signal,
+    macd_signal,
     mean_reversion_signal,
     multi_factor_signal,
     pairs_signal,
+    rsi_signal,
     trend_signal,
+    turtle_signal,
 )
 from app.services.trading_fees import (
     COMMISSION_MIN,
@@ -112,6 +119,59 @@ def _strategy_signal(
             aligned_b,
             lookback=int(params.get("lookback", 20)),
             entry_z=float(params.get("entry_z", 2)),
+        )
+    highs = [item.high for item in visible]
+    lows = [item.low for item in visible]
+    if strategy_id == "macd":
+        return macd_signal(
+            closes,
+            fast=int(params.get("fast", 12)),
+            slow=int(params.get("slow", 26)),
+            signal=int(params.get("signal", 9)),
+        )
+    if strategy_id == "turtle":
+        return turtle_signal(
+            highs,
+            lows,
+            closes,
+            entry_n=int(params.get("entry_n", 20)),
+            exit_n=int(params.get("exit_n", 10)),
+        )
+    if strategy_id == "bollinger":
+        return bollinger_signal(
+            closes,
+            n=int(params.get("n", 20)),
+            k=float(params.get("k", 2)),
+        )
+    if strategy_id == "rsi":
+        return rsi_signal(
+            closes,
+            n=int(params.get("n", 14)),
+            oversold=float(params.get("oversold", 30)),
+            overbought=float(params.get("overbought", 70)),
+        )
+    if strategy_id == "bias":
+        return bias_signal(
+            closes,
+            n=int(params.get("n", 20)),
+            entry=float(params.get("entry", 5)),
+        )
+    if strategy_id == "kdj":
+        return kdj_signal(
+            highs,
+            lows,
+            closes,
+            n=int(params.get("n", 9)),
+            low=float(params.get("low", 20)),
+            high=float(params.get("high", 80)),
+        )
+    if strategy_id == "atr":
+        return atr_channel_signal(
+            highs,
+            lows,
+            closes,
+            n=int(params.get("n", 14)),
+            m=float(params.get("m", 2)),
         )
     raise ValueError(f"unknown strategy: {strategy_id}")
 
