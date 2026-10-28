@@ -294,6 +294,12 @@ def run_backtest(
     return BacktestResult(trades=trades, equity=equity, metrics=metrics)
 
 
+def _total_fees(trades: list[dict]) -> float:
+    return float(
+        sum(float(trade.get("commission") or 0) + float(trade.get("stamp_tax") or 0) for trade in trades)
+    )
+
+
 def _metrics(
     *,
     initial_cash: float,
@@ -301,6 +307,7 @@ def _metrics(
     trades: list[dict],
     round_trip_profits: list[float],
 ) -> dict:
+    total_fees = _total_fees(trades)
     if not equity or initial_cash <= 0:
         return {
             "total_return": 0.0,
@@ -312,6 +319,7 @@ def _metrics(
             "win_rate": 0.0,
             "profit_factor": 0.0,
             "trade_count": len(trades),
+            "total_fees": total_fees,
         }
 
     strategy_end = equity[-1]["value"]
@@ -352,4 +360,5 @@ def _metrics(
         "win_rate": win_rate,
         "profit_factor": profit_factor,
         "trade_count": len(trades),
+        "total_fees": total_fees,
     }

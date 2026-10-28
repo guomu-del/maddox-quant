@@ -92,6 +92,7 @@ def test_no_signal_on_last_bar_does_not_fill():
 
     assert result.trades == []
     assert result.metrics["trade_count"] == 0
+    assert result.metrics["total_fees"] == 0
 
 
 def test_equity_includes_buy_and_hold_benchmark():
@@ -237,6 +238,9 @@ def test_backtest_applies_custom_commission_and_stamp_tax():
     assert sell["market_value"] == 0.0
     assert sell["cash"] == pytest.approx(
         buy["cash"] + sell_amount - sell["commission"] - sell["stamp_tax"]
+    )
+    assert result.metrics["total_fees"] == pytest.approx(
+        sum(trade["commission"] + trade["stamp_tax"] for trade in result.trades)
     )
 
 

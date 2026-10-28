@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { useLocale } from "@/i18n/locale";
+import { formatMoney, formatNumber } from "@/lib/format";
 import type { KlineBar } from "@/types/market";
 
 function sma(items: KlineBar[], n: number): (number | null)[] {
@@ -22,6 +24,7 @@ function sma(items: KlineBar[], n: number): (number | null)[] {
 }
 
 export function QuantChart({ items, showMa }: { items: KlineBar[]; showMa: boolean }) {
+  const { locale } = useLocale();
   const ma5 = sma(items, 5);
   const ma10 = sma(items, 10);
   const ma20 = sma(items, 20);
@@ -40,9 +43,27 @@ export function QuantChart({ items, showMa }: { items: KlineBar[]; showMa: boole
         <ComposedChart data={data}>
           <CartesianGrid stroke="#f4f4f5" />
           <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-          <YAxis yAxisId="price" domain={["auto", "auto"]} tick={{ fontSize: 11 }} />
-          <YAxis yAxisId="vol" orientation="right" tick={{ fontSize: 11 }} />
-          <Tooltip />
+          <YAxis
+            yAxisId="price"
+            domain={["auto", "auto"]}
+            tick={{ fontSize: 11 }}
+            width={72}
+            tickFormatter={(value) => formatMoney(Number(value), locale)}
+          />
+          <YAxis
+            yAxisId="vol"
+            orientation="right"
+            tick={{ fontSize: 11 }}
+            tickFormatter={(value) => formatNumber(Number(value), locale, 0)}
+          />
+          <Tooltip
+            formatter={(value, name) => {
+              const amount = Number(value);
+              if (!Number.isFinite(amount)) return ["—", name];
+              if (name === "volume") return [formatNumber(amount, locale, 0), name];
+              return [formatMoney(amount, locale), name];
+            }}
+          />
           <Bar yAxisId="vol" dataKey="volume" fill="#d4d4d8" />
           <Line yAxisId="price" type="monotone" dataKey="close" stroke="#18181b" dot={false} />
           {showMa ? (

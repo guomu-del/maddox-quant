@@ -3,6 +3,7 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { localizeError, useLocale } from "@/i18n/locale";
+import { formatMoney } from "@/lib/format";
 import {
   cancelOrder,
   fetchOrders,
@@ -20,12 +21,8 @@ type OrderType = "market" | "limit";
 
 export function TradePanel({ code, quote }: { code: string; quote: StockQuote | null }) {
   const { locale, t } = useLocale();
-  const money = new Intl.NumberFormat(locale === "en" ? "en-US" : "zh-CN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  function formatMoney(value: number): string {
-    return money.format(value);
+  function money(value: number): string {
+    return formatMoney(value, locale);
   }
   function formatTime(value: string | null): string {
     return value ? new Date(value).toLocaleString(locale === "en" ? "en-US" : "zh-CN") : t("common.dash");
@@ -151,7 +148,7 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
               <span className="text-sm font-normal text-zinc-500">{code || t("quant.noStock")}</span>
             </h2>
             {quote?.last != null ? (
-              <p className="mt-1 text-sm text-zinc-600">{t("quant.lastPrice", { price: formatMoney(quote.last) })}</p>
+              <p className="mt-1 text-sm text-zinc-600">{t("quant.lastPrice", { price: money(quote.last) })}</p>
             ) : null}
           </div>
           <button
@@ -171,7 +168,7 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
             <div key={String(label)} className="rounded-lg bg-zinc-100 px-4 py-3">
               <dt className="text-xs text-zinc-500">{label}</dt>
               <dd className="mt-1 text-lg font-semibold">
-                {typeof value === "number" ? `¥${formatMoney(value)}` : t("common.dash")}
+                {typeof value === "number" ? money(value) : t("common.dash")}
               </dd>
             </div>
           ))}
@@ -275,7 +272,7 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                     <td className="px-4 py-3">{order.name} {order.code}</td>
                     <td className="px-4 py-3">{sideLabel(order.side)}</td>
                     <td className="px-4 py-3">{order.order_type === "market" ? t("quant.market") : t("quant.limit")}</td>
-                    <td className="px-4 py-3">{order.price == null ? t("common.dash") : formatMoney(order.price)}</td>
+                    <td className="px-4 py-3">{order.price == null ? t("common.dash") : money(order.price)}</td>
                     <td className="px-4 py-3">{order.quantity} / {order.filled_qty}</td>
                     <td className="px-4 py-3" title={order.reject_reason ?? undefined}>
                       {statusLabels[order.status] ?? order.status}
@@ -309,9 +306,9 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                     <td className="px-4 py-3 text-zinc-500">{formatTime(trade.traded_at)}</td>
                     <td className="px-4 py-3">{trade.name} {trade.code}</td>
                     <td className="px-4 py-3">{sideLabel(trade.side)}</td>
-                    <td className="px-4 py-3">{formatMoney(trade.price)}</td>
+                    <td className="px-4 py-3">{money(trade.price)}</td>
                     <td className="px-4 py-3">{trade.quantity}</td>
-                    <td className="px-4 py-3">{formatMoney(trade.commission + trade.stamp_tax)}</td>
+                    <td className="px-4 py-3">{money(trade.commission + trade.stamp_tax)}</td>
                   </tr>
                 ))}
                 {trades.length === 0 ? <EmptyRow colSpan={6} label={t("common.noData")} /> : null}
@@ -332,9 +329,9 @@ export function TradePanel({ code, quote }: { code: string; quote: StockQuote | 
                   <tr key={position.id}>
                     <td className="px-4 py-3">{position.name} {position.code}</td>
                     <td className="px-4 py-3">{position.quantity}</td>
-                    <td className="px-4 py-3">{formatMoney(position.cost_amount)}</td>
+                    <td className="px-4 py-3">{money(position.cost_amount)}</td>
                     <td className="px-4 py-3">
-                      {position.quantity > 0 ? formatMoney(position.cost_amount / position.quantity) : t("common.dash")}
+                      {position.quantity > 0 ? money(position.cost_amount / position.quantity) : t("common.dash")}
                     </td>
                   </tr>
                 ))}

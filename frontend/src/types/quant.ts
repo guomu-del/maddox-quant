@@ -62,6 +62,7 @@ export interface BacktestMetrics {
   hold_return?: number;
   excess_return?: number;
   winner?: "strategy" | "hold" | "tie";
+  total_fees?: number;
 }
 
 export interface BacktestEquityPoint {

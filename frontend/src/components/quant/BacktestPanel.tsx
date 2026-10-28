@@ -17,6 +17,7 @@ import {
 import { PageToolbar, pageSlice } from "@/components/ui/PageToolbar";
 import { localizeError, useLocale } from "@/i18n/locale";
 import type { MessageKey } from "@/i18n/messages";
+import { formatMoney, formatNumber } from "@/lib/format";
 import {
   fetchBacktest,
   fetchBacktests,
@@ -156,7 +157,11 @@ export function BacktestPanel({ code }: { code: string }) {
   const [tradePage, setTradePage] = useState(1);
 
   function number(value: number): string {
-    return value.toLocaleString(locale === "en" ? "en-US" : "zh-CN", { maximumFractionDigits: 2 });
+    return formatNumber(value, locale);
+  }
+
+  function money(value: number): string {
+    return formatMoney(value, locale);
   }
 
   function strategyLabel(id: string, fallback?: string): string {
@@ -273,6 +278,11 @@ export function BacktestPanel({ code }: { code: string }) {
 
   const comparison = run ? compareToHold(run) : null;
   const drawdownRange = run?.equity?.length ? maxDrawdownRange(run.equity) : null;
+  const totalFees = run
+    ? typeof run.metrics?.total_fees === "number"
+      ? run.metrics.total_fees
+      : (run.trades ?? []).reduce((sum, trade) => sum + trade.commission + trade.stamp_tax, 0)
+    : 0;
   const winnerItem =
     comparison?.winner === "strategy"
       ? { text: t("quant.winnerStrategy"), className: "text-red-600" }
@@ -306,6 +316,7 @@ export function BacktestPanel({ code }: { code: string }) {
         { label: t("quant.winRate"), value: percent(run.metrics.win_rate), hint: t("quant.hintWinRate") },
         { label: t("quant.profitFactor"), value: number(run.metrics.profit_factor), hint: t("quant.hintProfitFactor") },
         { label: t("quant.tradeCount"), value: String(run.metrics.trade_count), hint: t("quant.hintTradeCount") },
+        { label: t("quant.totalFees"), value: money(totalFees), hint: t("quant.hintTotalFees") },
       ]
     : [];
 
@@ -485,8 +496,13 @@ export function BacktestPanel({ code }: { code: string }) {
                   <LineChart data={run.equity}>
                     <CartesianGrid stroke="#f4f4f5" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={28} />
-                    <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(value) => number(Number(value))} />
+                    <YAxis
+                      domain={["auto", "auto"]}
+                      tick={{ fontSize: 11 }}
+                      width={96}
+                      tickFormatter={(value) => money(Number(value))}
+                    />
+                    <Tooltip formatter={(value) => money(Number(value))} />
                     <Legend />
                     {drawdownRange ? (
                       <ReferenceArea
@@ -582,15 +598,15 @@ export function BacktestPanel({ code }: { code: string }) {
                     <tr key={`${trade.date}-${trade.side}-${index}`}>
                       <td className="px-4 py-3">{trade.date}</td>
                       <td className="px-4 py-3">{trade.side === "buy" ? t("quant.buy") : t("quant.sell")}</td>
-                      <td className="px-4 py-3">{number(trade.price)}</td>
+                      <td className="px-4 py-3">{money(trade.price)}</td>
                       <td className="px-4 py-3">{trade.quantity}</td>
                       <td className="px-4 py-3">
-                        {trade.market_value == null ? t("common.dash") : number(trade.market_value)}
+                        {trade.market_value == null ? t("common.dash") : money(trade.market_value)}
                       </td>
                       <td className="px-4 py-3">
-                        {trade.cash == null ? t("common.dash") : number(trade.cash)}
+                        {trade.cash == null ? t("common.dash") : money(trade.cash)}
                       </td>
-                      <td className="px-4 py-3">{number(trade.commission + trade.stamp_tax)}</td>
+                      <td className="px-4 py-3">{money(trade.commission + trade.stamp_tax)}</td>
                     </tr>
                   ))}
                   {!run.trades?.length ? (

@@ -447,6 +447,8 @@ export const zh = {
   "quant.hintProfitFactor": "盈利轮次净盈利合计 ÷ 亏损轮次净亏损合计。没有亏损轮次时为 0。",
   "quant.tradeCount": "成交次数",
   "quant.hintTradeCount": "回测期间买入与卖出成交笔数之和，含尚未平仓的单边成交。",
+  "quant.totalFees": "累计费用",
+  "quant.hintTotalFees": "回测期间全部成交的佣金与印花税之和。买入收佣金，卖出收佣金加印花税。",
   "quant.historyFailed": "回测记录加载失败",
   "quant.runFailed": "回测运行失败",
 } as const;
@@ -904,6 +906,8 @@ export const en: Record<keyof typeof zh, string> = {
   "quant.hintProfitFactor": "Sum of winning round-trip profits ÷ sum of losing round-trip losses. Zero when there are no losing round trips.",
   "quant.tradeCount": "Trades",
   "quant.hintTradeCount": "Count of buy and sell fills in the backtest, including one-sided fills that are not yet closed.",
+  "quant.totalFees": "Total fees",
+  "quant.hintTotalFees": "Sum of commission and stamp tax on every fill. Buys pay commission; sells pay commission plus stamp tax.",
   "quant.historyFailed": "Failed to load backtests",
   "quant.runFailed": "Backtest failed",
 };

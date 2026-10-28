@@ -11,6 +11,7 @@ import { PageToolbar, pageSlice } from "@/components/ui/PageToolbar";
 import { quickAddWatchlist } from "@/components/watchlist/WatchlistPanel";
 import { localizeError, useLocale } from "@/i18n/locale";
 import type { MessageKey } from "@/i18n/messages";
+import { formatMoney } from "@/lib/format";
 import { fetchStockKline, fetchStockQuote } from "@/lib/market-api";
 import { fetchWatchlist } from "@/lib/watchlist-api";
 import type { KlineResponse, StockQuote } from "@/types/market";
@@ -29,13 +30,8 @@ function changeClass(value: number | null): string {
   return value > 0 ? "text-red-600" : "text-emerald-600";
 }
 
-function formatNumber(value: number | null, locale: string): string {
-  return value == null
-    ? "—"
-    : value.toLocaleString(locale === "en" ? "en-US" : "zh-CN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+function formatPrice(value: number | null, locale: string): string {
+  return value == null ? "—" : formatMoney(value, locale);
 }
 
 function formatPct(value: number | null): string {
@@ -262,7 +258,7 @@ export function QuantWorkbench() {
                     <p className="mt-1 text-sm text-zinc-500">{t("quant.paperOnly")}</p>
                   </div>
                   <div className={`text-right ${changeClass(quote.change_pct)}`}>
-                    <div className="text-3xl font-semibold">{formatNumber(quote.last, locale)}</div>
+                    <div className="text-3xl font-semibold">{formatPrice(quote.last, locale)}</div>
                     <div className="text-sm">{formatPct(quote.change_pct)}</div>
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { quickAddWatchlist } from "@/components/watchlist/WatchlistPanel";
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
 import { localizeError, useLocale } from "@/i18n/locale";
-import type { Translate } from "@/i18n/locale";
+import { formatMoney, formatMoneyCompact } from "@/lib/format";
 import {
   fetchMarketBoards,
   fetchMarketOverview,
@@ -35,12 +35,9 @@ function formatNum(value: number | null | undefined, locale: string, digits = 2)
   return value.toLocaleString(locale === "en" ? "en-US" : "zh-CN", { maximumFractionDigits: digits });
 }
 
-function formatAmount(value: number | null | undefined, t: Translate, locale: string): string {
+function formatAmount(value: number | null | undefined, locale: string): string {
   if (value == null) return "—";
-  if (value >= 1e12) return t("market.unitTrillion", { n: (value / 1e12).toFixed(2) });
-  if (value >= 1e8) return t("market.unitYi", { n: (value / 1e8).toFixed(2) });
-  if (value >= 1e4) return t("market.unitWan", { n: (value / 1e4).toFixed(2) });
-  return formatNum(value, locale, 0);
+  return formatMoneyCompact(value, locale);
 }
 
 export function MarketPage() {
@@ -184,7 +181,7 @@ export function MarketPage() {
           <div>
             {t("market.limit", { up: overview.stats.limit_up_count, down: overview.stats.limit_down_count })}
           </div>
-          <div>{t("market.turnover")} {formatAmount(overview.stats.total_amount, t, locale)}</div>
+          <div>{t("market.turnover")} {formatAmount(overview.stats.total_amount, locale)}</div>
         </div>
       ) : null}
 
@@ -251,10 +248,12 @@ export function MarketPage() {
                     </Link>
                   </td>
                   <td className="px-3 py-2">{item.name}</td>
-                  <td className="px-3 py-2">{formatNum(item.last, locale)}</td>
+                  <td className="px-3 py-2">{item.last == null ? t("common.dash") : formatMoney(item.last, locale)}</td>
                   <td className={`px-3 py-2 ${changeClass(item.change_pct)}`}>{formatPct(item.change_pct)}</td>
-                  <td className={`px-3 py-2 ${changeClass(item.change_amt)}`}>{formatNum(item.change_amt, locale)}</td>
-                  <td className="px-3 py-2">{formatAmount(item.amount, t, locale)}</td>
+                  <td className={`px-3 py-2 ${changeClass(item.change_amt)}`}>
+                    {item.change_amt == null ? t("common.dash") : formatMoney(item.change_amt, locale)}
+                  </td>
+                  <td className="px-3 py-2">{formatAmount(item.amount, locale)}</td>
                   <td className="px-3 py-2">{item.turnover == null ? t("common.dash") : `${item.turnover.toFixed(2)}%`}</td>
                   <td className="px-3 py-2">{formatNum(item.pe, locale)}</td>
                   <td className="px-3 py-2">
