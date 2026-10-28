@@ -5,6 +5,7 @@ import pytest
 from app.schemas.market import KlineBar
 from app.services.cta_backtester import run_backtest
 from app.services.cta_strategies import breakout_signal, dual_ma_signal
+from app.services.trading_fees import commission
 
 
 def _bars() -> list[KlineBar]:
@@ -91,3 +92,37 @@ def test_no_signal_on_last_bar_does_not_fill():
 
     assert result.trades == []
     assert result.metrics["trade_count"] == 0
+
+
+def test_equity_includes_buy_and_hold_benchmark():
+    bars = _bars()
+    cash = 1_000_000.0
+    result = run_backtest(
+        code="600519",
+        strategy_id="dual_ma",
+        params={"fast": 5, "slow": 20},
+        start=bars[0].date,
+        end=bars[-1].date,
+        cash=cash,
+        bars=bars,
+    )
+
+    assert result.equity
+    assert all("value" in point and "hold" in point for point in result.equity)
+
+    first_open = bars[0].open
+    quantity = int(cash // (first_open * 100)) * 100
+    while quantity > 0:
+        amount = quantity * first_open
+        fee = commission(amount)
+        if amount + fee <= cash:
+            break
+        quantity -= 100
+    leftover = cash
+    if quantity > 0:
+        leftover = cash - quantity * first_open - commission(quantity * first_open)
+
+    assert result.equity[0]["hold"] == leftover + quantity * bars[0].close
+    assert result.equity[-1]["hold"] == leftover + quantity * bars[-1].close
+    assert result.equity[0]["value"] == cash
+    assert result.equity[-1]["hold"] != result.equity[0]["hold"]

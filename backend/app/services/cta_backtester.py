@@ -6,6 +6,29 @@ from app.services.cta_strategies import breakout_signal, dual_ma_signal
 from app.services.trading_fees import commission, stamp_tax
 
 
+def _max_buy_quantity(cash: float, price: float) -> int:
+    if price <= 0 or cash <= 0:
+        return 0
+    quantity = int(cash // (price * 100)) * 100
+    while quantity > 0:
+        amount = quantity * price
+        if amount + commission(amount) <= cash:
+            return quantity
+        quantity -= 100
+    return 0
+
+
+def _buy_and_hold_values(bars: list[KlineBar], cash: float) -> list[float]:
+    if not bars:
+        return []
+    quantity = _max_buy_quantity(cash, bars[0].open)
+    leftover = cash
+    if quantity > 0:
+        amount = quantity * bars[0].open
+        leftover = cash - amount - commission(amount)
+    return [leftover + quantity * bar.close for bar in bars]
+
+
 @dataclass
 class BacktestResult:
     trades: list[dict]
@@ -31,16 +54,11 @@ def run_backtest(
     trades: list[dict] = []
     equity: list[dict] = []
     round_trip_profits: list[float] = []
+    hold_values = _buy_and_hold_values(bars, initial_cash)
 
     for index, bar in enumerate(bars):
         if pending_intent == "buy" and position == 0:
-            quantity = int(available_cash // (bar.open * 100)) * 100
-            while quantity > 0:
-                amount = quantity * bar.open
-                buy_commission = commission(amount)
-                if amount + buy_commission <= available_cash:
-                    break
-                quantity -= 100
+            quantity = _max_buy_quantity(available_cash, bar.open)
             if quantity > 0:
                 amount = quantity * bar.open
                 buy_commission = commission(amount)
@@ -109,6 +127,7 @@ def run_backtest(
             {
                 "date": bar.date.isoformat(),
                 "value": available_cash + position * bar.close,
+                "hold": hold_values[index],
             }
         )
 

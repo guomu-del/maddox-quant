@@ -64,6 +64,7 @@ export interface BacktestMetrics {
 export interface BacktestEquityPoint {
   date: string;
   value: number;
+  hold?: number;
 }
 
 export interface BacktestTrade {

@@ -3,6 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -242,7 +243,23 @@ export function BacktestPanel({ code }: { code: string }) {
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} minTickGap={28} />
                     <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(value) => number(Number(value))} />
-                    <Line type="monotone" dataKey="value" name={t("quant.equityName")} stroke="#18181b" dot={false} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      name={t("quant.equityStrategy")}
+                      stroke="#18181b"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="hold"
+                      name={t("quant.equityHold")}
+                      stroke="#0284c7"
+                      strokeWidth={2}
+                      dot={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
