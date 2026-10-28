@@ -75,6 +75,8 @@ export interface BacktestTrade {
   quantity: number;
   commission: number;
   stamp_tax: number;
+  market_value?: number;
+  cash?: number;
 }
 
 export interface BacktestRun {

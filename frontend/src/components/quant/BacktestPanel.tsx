@@ -65,6 +65,9 @@ export function BacktestPanel({ code }: { code: string }) {
   const [start, setStart] = useState(dates.start);
   const [end, setEnd] = useState(dates.end);
   const [cash, setCash] = useState("1000000");
+  const [commissionPct, setCommissionPct] = useState("0.03");
+  const [commissionMin, setCommissionMin] = useState("5");
+  const [stampTaxPct, setStampTaxPct] = useState("0.05");
   const [pairCode, setPairCode] = useState("");
   const [runs, setRuns] = useState<BacktestRun[]>([]);
   const [run, setRun] = useState<BacktestRun | null>(null);
@@ -88,7 +91,20 @@ export function BacktestPanel({ code }: { code: string }) {
 
   const cashAmount = Number(cash);
   const cashValid = Number.isFinite(cashAmount) && cashAmount > 0;
+  const commissionRate = Number(commissionPct) / 100;
+  const commissionFloor = Number(commissionMin);
+  const stampTaxRate = Number(stampTaxPct) / 100;
+  const feesValid =
+    Number.isFinite(commissionRate) &&
+    commissionRate >= 0 &&
+    Number.isFinite(commissionFloor) &&
+    commissionFloor >= 0 &&
+    Number.isFinite(stampTaxRate) &&
+    stampTaxRate >= 0;
   const pairReady = strategyId !== "pairs" || /^\d{6}$/.test(pairCode.trim());
+  const strategyParamEntries = Object.entries(params).filter(
+    ([key]) => !["pair_code", "commission_rate", "commission_min", "stamp_tax_rate"].includes(key),
+  );
 
   const loadHistory = useCallback(async () => {
     const nextRuns = await fetchBacktests(20);
@@ -141,6 +157,9 @@ export function BacktestPanel({ code }: { code: string }) {
         start,
         end,
         cash: cashAmount,
+        commission_rate: commissionRate,
+        commission_min: commissionFloor,
+        stamp_tax_rate: stampTaxRate,
         ...(strategyId === "pairs" ? { pair_code: pairCode.trim() } : {}),
       });
       setRun(nextRun);
@@ -203,7 +222,7 @@ export function BacktestPanel({ code }: { code: string }) {
               ))}
             </select>
           </label>
-          {Object.entries(params).map(([key, value]) => {
+          {strategyParamEntries.map(([key, value]) => {
             const decimal = key.endsWith("_z");
             return (
               <label key={`${strategyId}-${key}`} className="text-sm">
@@ -262,11 +281,46 @@ export function BacktestPanel({ code }: { code: string }) {
               className="h-10 w-full rounded-lg border border-zinc-300 px-3"
             />
           </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-zinc-600">{t("quant.commissionPct")}</span>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={commissionPct}
+              onChange={(event) => setCommissionPct(event.target.value)}
+              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
+            />
+            <span className="mt-1 block text-xs text-zinc-500">{t("quant.commissionHint")}</span>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-zinc-600">{t("quant.commissionMin")}</span>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={commissionMin}
+              onChange={(event) => setCommissionMin(event.target.value)}
+              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-zinc-600">{t("quant.stampTaxPct")}</span>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={stampTaxPct}
+              onChange={(event) => setStampTaxPct(event.target.value)}
+              className="h-10 w-full rounded-lg border border-zinc-300 px-3"
+            />
+            <span className="mt-1 block text-xs text-zinc-500">{t("quant.stampTaxHint")}</span>
+          </label>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            disabled={!code || submitting || !cashValid || !pairReady}
+            disabled={!code || submitting || !cashValid || !feesValid || !pairReady}
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? t("quant.backtestRunning") : t("quant.runBacktest")}
@@ -332,12 +386,16 @@ export function BacktestPanel({ code }: { code: string }) {
           <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
             <h3 className="border-b border-zinc-200 px-4 py-3 text-sm font-semibold">{t("quant.backtestTrades")}</h3>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-sm">
+              <table className="w-full min-w-[920px] text-left text-sm">
                 <thead className="bg-zinc-50 text-zinc-500">
                   <tr>
-                    <th className="px-4 py-3">{t("quant.date")}</th><th className="px-4 py-3">{t("quant.side")}</th>
-                    <th className="px-4 py-3">{t("quant.fillPrice")}</th><th className="px-4 py-3">{t("quant.qtyCol")}</th>
-                    <th className="px-4 py-3">{t("quant.fees")}</th>
+                    <th className="px-4 py-3">{t("quant.date")}</th>
+                    <th className="px-4 py-3">{t("quant.side")}</th>
+                    <th className="px-4 py-3">{t("quant.fillPrice")}</th>
+                    <th className="px-4 py-3">{t("quant.qtyCol")}</th>
+                    <th className="px-4 py-3">{t("quant.marketValue")}</th>
+                    <th className="px-4 py-3">{t("quant.cashAfterTrade")}</th>
+                    <th className="px-4 py-3">{t("quant.backtestFees")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -347,11 +405,17 @@ export function BacktestPanel({ code }: { code: string }) {
                       <td className="px-4 py-3">{trade.side === "buy" ? t("quant.buy") : t("quant.sell")}</td>
                       <td className="px-4 py-3">{number(trade.price)}</td>
                       <td className="px-4 py-3">{trade.quantity}</td>
+                      <td className="px-4 py-3">
+                        {trade.market_value == null ? t("common.dash") : number(trade.market_value)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {trade.cash == null ? t("common.dash") : number(trade.cash)}
+                      </td>
                       <td className="px-4 py-3">{number(trade.commission + trade.stamp_tax)}</td>
                     </tr>
                   ))}
                   {!run.trades?.length ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-500">{t("quant.noTrades")}</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-500">{t("quant.noTrades")}</td></tr>
                   ) : null}
                 </tbody>
               </table>

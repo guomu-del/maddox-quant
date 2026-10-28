@@ -80,6 +80,9 @@ def create_backtest(payload: BacktestCreate, db: Session = Depends(get_db)):
             status_code=400,
         )
     params = {**defaults, **payload.params}
+    params["commission_rate"] = payload.commission_rate
+    params["commission_min"] = payload.commission_min
+    params["stamp_tax_rate"] = payload.stamp_tax_rate
     pair_code = payload.pair_code
     pair_bars = None
     if payload.strategy_id == "pairs":
@@ -118,6 +121,9 @@ def create_backtest(payload: BacktestCreate, db: Session = Depends(get_db)):
             cash=payload.cash,
             bars=kline.items,
             pair_bars=pair_bars,
+            commission_rate=payload.commission_rate,
+            commission_min=payload.commission_min,
+            stamp_tax_rate=payload.stamp_tax_rate,
         )
     except (TypeError, ValueError) as exc:
         raise AppError(

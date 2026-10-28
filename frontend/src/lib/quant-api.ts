@@ -41,6 +41,9 @@ export function submitBacktest(body: {
   end: string;
   cash: number;
   pair_code?: string;
+  commission_rate?: number;
+  commission_min?: number;
+  stamp_tax_rate?: number;
 }): Promise<BacktestRun> {
   return json("/api/quant/backtests", {
     method: "POST",

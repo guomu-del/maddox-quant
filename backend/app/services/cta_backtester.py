@@ -10,29 +10,54 @@ from app.services.cta_strategies import (
     pairs_signal,
     trend_signal,
 )
-from app.services.trading_fees import commission, stamp_tax
+from app.services.trading_fees import (
+    COMMISSION_MIN,
+    COMMISSION_RATE,
+    STAMP_TAX_RATE,
+    commission,
+    stamp_tax,
+)
 
 
-def _max_buy_quantity(cash: float, price: float) -> int:
+def _max_buy_quantity(
+    cash: float,
+    price: float,
+    *,
+    commission_rate: float,
+    commission_min: float,
+) -> int:
     if price <= 0 or cash <= 0:
         return 0
     quantity = int(cash // (price * 100)) * 100
     while quantity > 0:
         amount = quantity * price
-        if amount + commission(amount) <= cash:
+        if amount + commission(amount, rate=commission_rate, minimum=commission_min) <= cash:
             return quantity
         quantity -= 100
     return 0
 
 
-def _buy_and_hold_values(bars: list[KlineBar], cash: float) -> list[float]:
+def _buy_and_hold_values(
+    bars: list[KlineBar],
+    cash: float,
+    *,
+    commission_rate: float,
+    commission_min: float,
+) -> list[float]:
     if not bars:
         return []
-    quantity = _max_buy_quantity(cash, bars[0].open)
+    quantity = _max_buy_quantity(
+        cash,
+        bars[0].open,
+        commission_rate=commission_rate,
+        commission_min=commission_min,
+    )
     leftover = cash
     if quantity > 0:
         amount = quantity * bars[0].open
-        leftover = cash - amount - commission(amount)
+        leftover = cash - amount - commission(
+            amount, rate=commission_rate, minimum=commission_min
+        )
     return [leftover + quantity * bar.close for bar in bars]
 
 
@@ -101,6 +126,9 @@ def run_backtest(
     cash: float,
     bars: list[KlineBar],
     pair_bars: list[KlineBar] | None = None,
+    commission_rate: float = COMMISSION_RATE,
+    commission_min: float = COMMISSION_MIN,
+    stamp_tax_rate: float = STAMP_TAX_RATE,
 ) -> BacktestResult:
     initial_cash = float(cash)
     available_cash = initial_cash
@@ -110,17 +138,29 @@ def run_backtest(
     trades: list[dict] = []
     equity: list[dict] = []
     round_trip_profits: list[float] = []
-    hold_values = _buy_and_hold_values(bars, initial_cash)
+    hold_values = _buy_and_hold_values(
+        bars,
+        initial_cash,
+        commission_rate=commission_rate,
+        commission_min=commission_min,
+    )
     if strategy_id == "pairs" and not pair_bars:
         raise ValueError("pairs strategy requires pair bars")
     pair_close_by_date = {item.date: item.close for item in pair_bars or []}
 
     for index, bar in enumerate(bars):
         if pending_intent == "buy" and position == 0:
-            quantity = _max_buy_quantity(available_cash, bar.open)
+            quantity = _max_buy_quantity(
+                available_cash,
+                bar.open,
+                commission_rate=commission_rate,
+                commission_min=commission_min,
+            )
             if quantity > 0:
                 amount = quantity * bar.open
-                buy_commission = commission(amount)
+                buy_commission = commission(
+                    amount, rate=commission_rate, minimum=commission_min
+                )
                 available_cash -= amount + buy_commission
                 position = quantity
                 entry_cost = amount + buy_commission
@@ -133,13 +173,17 @@ def run_backtest(
                         "quantity": quantity,
                         "commission": buy_commission,
                         "stamp_tax": 0.0,
+                        "market_value": position * bar.open,
+                        "cash": available_cash,
                     }
                 )
         elif pending_intent == "sell" and position > 0:
             quantity = position
             amount = quantity * bar.open
-            sell_commission = commission(amount)
-            sell_stamp_tax = stamp_tax("sell", amount)
+            sell_commission = commission(
+                amount, rate=commission_rate, minimum=commission_min
+            )
+            sell_stamp_tax = stamp_tax("sell", amount, rate=stamp_tax_rate)
             proceeds = amount - sell_commission - sell_stamp_tax
             available_cash += proceeds
             round_trip_profits.append(proceeds - entry_cost)
@@ -154,6 +198,8 @@ def run_backtest(
                     "quantity": quantity,
                     "commission": sell_commission,
                     "stamp_tax": sell_stamp_tax,
+                    "market_value": position * bar.open,
+                    "cash": available_cash,
                 }
             )
         pending_intent = None

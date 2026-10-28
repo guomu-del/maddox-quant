@@ -3,9 +3,14 @@ COMMISSION_MIN = 5.0
 STAMP_TAX_RATE = 0.0005
 
 
-def commission(amount: float) -> float:
-    return max(round(amount * COMMISSION_RATE, 10), COMMISSION_MIN)
+def commission(
+    amount: float,
+    *,
+    rate: float = COMMISSION_RATE,
+    minimum: float = COMMISSION_MIN,
+) -> float:
+    return max(round(amount * rate, 10), minimum)
 
 
-def stamp_tax(side: str, amount: float) -> float:
-    return amount * STAMP_TAX_RATE if side == "sell" else 0.0
+def stamp_tax(side: str, amount: float, *, rate: float = STAMP_TAX_RATE) -> float:
+    return amount * rate if side == "sell" else 0.0

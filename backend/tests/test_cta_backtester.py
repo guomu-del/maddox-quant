@@ -156,3 +156,74 @@ def test_trend_backtest_is_a_known_strategy():
     )
     assert result.equity
     assert result.equity[0]["value"] == 50_000
+
+
+def test_buy_trade_records_market_value_and_remaining_cash():
+    bars = _bars()
+    cash = 1_000_000.0
+    result = run_backtest(
+        code="600519",
+        strategy_id="dual_ma",
+        params={"fast": 5, "slow": 20},
+        start=bars[0].date,
+        end=bars[-1].date,
+        cash=cash,
+        bars=bars,
+    )
+    buys = [trade for trade in result.trades if trade["side"] == "buy"]
+    assert buys
+    buy = buys[0]
+    amount = buy["quantity"] * buy["price"]
+    fee = commission(amount)
+    assert buy["commission"] == fee
+    assert buy["stamp_tax"] == 0.0
+    assert buy["market_value"] == amount
+    assert buy["cash"] == pytest.approx(cash - amount - fee)
+
+
+def test_backtest_applies_custom_commission_and_stamp_tax():
+    start = date(2024, 1, 2)
+    closes = [10.0] * 8 + [12.0, 13.0, 14.0, 15.0] + [13.0, 11.0, 9.0, 8.0]
+    bars = [
+        KlineBar(
+            date=start + timedelta(days=i),
+            open=close - 0.05,
+            high=close + 0.1,
+            low=close - 0.1,
+            close=close,
+            volume=1,
+            amount=close,
+        )
+        for i, close in enumerate(closes)
+    ]
+    cash = 50_000.0
+    result = run_backtest(
+        code="600519",
+        strategy_id="dual_ma",
+        params={"fast": 2, "slow": 5},
+        start=bars[0].date,
+        end=bars[-1].date,
+        cash=cash,
+        commission_rate=0.01,
+        commission_min=0.0,
+        stamp_tax_rate=0.02,
+        bars=bars,
+    )
+    buys = [trade for trade in result.trades if trade["side"] == "buy"]
+    sells = [trade for trade in result.trades if trade["side"] == "sell"]
+    assert buys and sells
+    buy = buys[0]
+    buy_amount = buy["quantity"] * buy["price"]
+    assert buy["commission"] == buy_amount * 0.01
+    assert buy["stamp_tax"] == 0.0
+    assert buy["market_value"] == buy_amount
+    assert buy["cash"] == pytest.approx(cash - buy_amount - buy["commission"])
+
+    sell = sells[0]
+    sell_amount = sell["quantity"] * sell["price"]
+    assert sell["commission"] == pytest.approx(sell_amount * 0.01)
+    assert sell["stamp_tax"] == pytest.approx(sell_amount * 0.02)
+    assert sell["market_value"] == 0.0
+    assert sell["cash"] == pytest.approx(
+        buy["cash"] + sell_amount - sell["commission"] - sell["stamp_tax"]
+    )

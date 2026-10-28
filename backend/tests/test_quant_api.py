@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+import pytest
 from sqlalchemy import func, select
 
 from app.core.errors import AppError
@@ -77,6 +78,13 @@ def test_backtest_persists_run_without_writing_paper_trades(
     body = response.json()
     assert body["status"] == "ok"
     assert body["metrics"]["trade_count"] == 1
+    trade = body["trades"][0]
+    assert trade["market_value"] == trade["quantity"] * trade["price"]
+    assert trade["cash"] == pytest.approx(
+        body["cash"] - trade["market_value"] - trade["commission"]
+    )
+    assert body["params"]["commission_rate"] == 0.0003
+    assert body["params"]["stamp_tax_rate"] == 0.0005
     assert db_session.scalar(select(func.count()).select_from(PaperTrade)) == 0
     account = db_session.get(PaperAccount, 1)
     assert account is None or account.cash == 1_000_000
