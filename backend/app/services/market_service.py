@@ -29,11 +29,20 @@ CACHE_BOARDS = "boards"
 LIMIT_PCT = 9.8
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 logger = logging.getLogger(__name__)
-SORT_FIELDS = {
+SORT_FIELDS: dict[str, Callable[[StockQuote], object]] = {
+    "code": lambda item: item.code,
+    "name": lambda item: (item.name or "").casefold(),
+    "last": lambda item: item.last,
     "change_pct": lambda item: item.change_pct,
+    "change_amt": lambda item: item.change_amt,
+    "open": lambda item: item.open,
+    "high": lambda item: item.high,
+    "low": lambda item: item.low,
+    "prev_close": lambda item: item.prev_close,
+    "volume": lambda item: item.volume,
     "amount": lambda item: item.amount,
     "turnover": lambda item: item.turnover,
-    "code": lambda item: item.code,
+    "pe": lambda item: item.pe,
 }
 CODE_RE = re.compile(r"^\d{6}$")
 
@@ -106,15 +115,17 @@ def get_stocks(
         for item in stocks
         if not query or query in item.code.lower() or query in item.name.lower()
     ]
-    field = sort if sort in SORT_FIELDS else "change_pct"
-    reverse = order != "asc"
-    if field == "code":
-        filtered.sort(key=lambda item: item.code, reverse=reverse)
-    else:
-        numbered = [item for item in filtered if SORT_FIELDS[field](item) is not None]
-        missing = [item for item in filtered if SORT_FIELDS[field](item) is None]
-        numbered.sort(key=SORT_FIELDS[field], reverse=reverse)
-        filtered = numbered + missing
+    if sort != "default":
+        field = sort if sort in SORT_FIELDS else "change_pct"
+        reverse = order != "asc"
+        getter = SORT_FIELDS[field]
+        if field in {"code", "name"}:
+            filtered.sort(key=getter, reverse=reverse)
+        else:
+            numbered = [item for item in filtered if getter(item) is not None]
+            missing = [item for item in filtered if getter(item) is None]
+            numbered.sort(key=getter, reverse=reverse)
+            filtered = numbered + missing
 
     total = len(filtered)
     start = (page - 1) * page_size

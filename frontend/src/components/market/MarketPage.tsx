@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { quickAddWatchlist } from "@/components/watchlist/WatchlistPanel";
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
 import { localizeError, useLocale } from "@/i18n/locale";
+import type { MessageKey } from "@/i18n/messages";
 import { formatMoney, formatMoneyCompact } from "@/lib/format";
 import {
   fetchMarketBoards,
@@ -39,6 +40,22 @@ function formatAmount(value: number | null | undefined, locale: string): string 
   if (value == null) return "—";
   return formatMoneyCompact(value, locale);
 }
+
+const SORTABLE_COLUMNS: { field: string; labelKey: MessageKey }[] = [
+  { field: "code", labelKey: "market.code" },
+  { field: "name", labelKey: "market.name" },
+  { field: "last", labelKey: "market.last" },
+  { field: "change_pct", labelKey: "market.changePct" },
+  { field: "change_amt", labelKey: "market.changeAmt" },
+  { field: "open", labelKey: "market.open" },
+  { field: "high", labelKey: "market.high" },
+  { field: "low", labelKey: "market.low" },
+  { field: "prev_close", labelKey: "market.prevClose" },
+  { field: "volume", labelKey: "market.volume" },
+  { field: "amount", labelKey: "market.amount" },
+  { field: "turnover", labelKey: "market.turnoverRate" },
+  { field: "pe", labelKey: "market.pe" },
+];
 
 export function MarketPage() {
   const { locale, t } = useLocale();
@@ -114,7 +131,12 @@ export function MarketPage() {
 
   function toggleSort(field: string) {
     if (sort === field) {
-      setOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+      if (order === "desc") {
+        setOrder("asc");
+      } else {
+        setSort("default");
+        setOrder("desc");
+      }
     } else {
       setSort(field);
       setOrder("desc");
@@ -212,35 +234,16 @@ export function MarketPage() {
           <table className="min-w-[1100px] w-full text-sm">
             <thead className="bg-zinc-50 text-left text-zinc-600">
               <tr>
-                <th className="px-3 py-2">
-                  <button type="button" onClick={() => toggleSort("code")}>
-                    {t("market.code")}
-                  </button>
-                </th>
-                <th className="px-3 py-2">{t("market.name")}</th>
-                <th className="px-3 py-2">{t("market.last")}</th>
-                <th className="px-3 py-2">
-                  <button type="button" onClick={() => toggleSort("change_pct")}>
-                    {t("market.changePct")}
-                  </button>
-                </th>
-                <th className="px-3 py-2">{t("market.changeAmt")}</th>
-                <th className="px-3 py-2">{t("market.open")}</th>
-                <th className="px-3 py-2">{t("market.high")}</th>
-                <th className="px-3 py-2">{t("market.low")}</th>
-                <th className="px-3 py-2">{t("market.prevClose")}</th>
-                <th className="px-3 py-2">{t("market.volume")}</th>
-                <th className="px-3 py-2">
-                  <button type="button" onClick={() => toggleSort("amount")}>
-                    {t("market.amount")}
-                  </button>
-                </th>
-                <th className="px-3 py-2">
-                  <button type="button" onClick={() => toggleSort("turnover")}>
-                    {t("market.turnoverRate")}
-                  </button>
-                </th>
-                <th className="px-3 py-2">{t("market.pe")}</th>
+                {SORTABLE_COLUMNS.map((column) => (
+                  <SortableHeader
+                    key={column.field}
+                    field={column.field}
+                    label={t(column.labelKey)}
+                    sort={sort}
+                    order={order}
+                    onToggle={toggleSort}
+                  />
+                ))}
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -308,6 +311,40 @@ export function MarketPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SortableHeader({
+  field,
+  label,
+  sort,
+  order,
+  onToggle,
+}: {
+  field: string;
+  label: string;
+  sort: string;
+  order: "asc" | "desc";
+  onToggle: (field: string) => void;
+}) {
+  const { t } = useLocale();
+  const active = sort === field;
+  const state = !active ? t("market.sortDefault") : order === "asc" ? t("market.sortAsc") : t("market.sortDesc");
+  return (
+    <th className="px-3 py-2" aria-sort={active ? (order === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onToggle(field)}
+        title={`${label} · ${t("market.sortCycle")}`}
+        aria-label={`${label}, ${state}`}
+        className={`inline-flex items-center gap-1 hover:text-zinc-900 ${active ? "font-medium text-zinc-900" : ""}`}
+      >
+        {label}
+        <span className={`text-[10px] leading-none ${active ? "text-zinc-700" : "text-zinc-300"}`} aria-hidden>
+          {active ? (order === "asc" ? "▲" : "▼") : "↕"}
+        </span>
+      </button>
+    </th>
   );
 }
 

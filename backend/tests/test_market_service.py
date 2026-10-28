@@ -118,6 +118,18 @@ def test_stock_search_sort_and_page():
     assert provider.stock_calls == 1
 
 
+def test_stock_sort_by_name_pe_and_default_order():
+    provider = FakeProvider()
+    by_name = market_service.get_stocks(sort="name", order="asc", provider=provider)
+    assert [item.name for item in by_name.items] == ["宁德时代", "平安银行", "贵州茅台"]
+
+    by_pe = market_service.get_stocks(sort="pe", order="desc", provider=provider)
+    assert [item.code for item in by_pe.items] == ["600519", "300750", "000001"]
+
+    original = market_service.get_stocks(sort="default", order="desc", provider=provider)
+    assert [item.code for item in original.items] == ["600519", "000001", "300750"]
+
+
 def test_boards_sorted_desc():
     boards = market_service.get_boards(provider=FakeProvider())
     assert [item.name for item in boards.items] == ["银行", "白酒"]
