@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { PageToolbar, pageSlice } from "@/components/ui/PageToolbar";
 import { localizeError, useLocale } from "@/i18n/locale";
 import type { MessageKey } from "@/i18n/messages";
 import {
@@ -152,6 +153,7 @@ export function BacktestPanel({ code }: { code: string }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tradePage, setTradePage] = useState(1);
 
   function number(value: number): string {
     return value.toLocaleString(locale === "en" ? "en-US" : "zh-CN", { maximumFractionDigits: 2 });
@@ -223,6 +225,10 @@ export function BacktestPanel({ code }: { code: string }) {
       cancelled = true;
     };
   }, [loadHistory]);
+
+  useEffect(() => {
+    setTradePage(1);
+  }, [run?.id]);
 
   function changeStrategy(nextId: string) {
     setStrategyId(nextId);
@@ -572,7 +578,7 @@ export function BacktestPanel({ code }: { code: string }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
-                  {(run.trades ?? []).map((trade, index) => (
+                  {pageSlice(run.trades ?? [], tradePage).map((trade, index) => (
                     <tr key={`${trade.date}-${trade.side}-${index}`}>
                       <td className="px-4 py-3">{trade.date}</td>
                       <td className="px-4 py-3">{trade.side === "buy" ? t("quant.buy") : t("quant.sell")}</td>
@@ -593,6 +599,9 @@ export function BacktestPanel({ code }: { code: string }) {
                 </tbody>
               </table>
             </div>
+            <div className="border-t border-zinc-200">
+              <PageToolbar page={tradePage} totalItems={run.trades?.length ?? 0} onPageChange={setTradePage} />
+            </div>
           </section>
         </>
       ) : loading ? (
@@ -601,32 +610,44 @@ export function BacktestPanel({ code }: { code: string }) {
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h3 className="text-sm font-semibold">{t("quant.recentBacktests")}</h3>
+      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <h3 className="border-b border-zinc-200 px-4 py-3 text-sm font-semibold">{t("quant.recentBacktests")}</h3>
         {runs.length ? (
-          <ul className="mt-3 divide-y divide-zinc-100">
-            {runs.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => void openRun(item.id)}
-                  className="flex w-full items-center justify-between gap-4 py-3 text-left text-sm hover:text-zinc-600"
-                >
-                  <span>
-                    {item.code}
-                    {typeof item.params?.pair_code === "string" ? `/${item.params.pair_code}` : ""}
-                    {" · "}
-                    {strategyLabel(item.strategy_id)} · {item.start} {t("quant.rangeTo")} {item.end}
-                  </span>
-                  <span className="shrink-0 text-zinc-500">
-                    {item.metrics ? percent(item.metrics.total_return) : t("common.dash")}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-zinc-50 text-zinc-500">
+                <tr>
+                  <th className="px-4 py-3">{t("quant.symbol")}</th>
+                  <th className="px-4 py-3">{t("quant.strategy")}</th>
+                  <th className="px-4 py-3">{t("quant.startDate")}</th>
+                  <th className="px-4 py-3">{t("quant.endDate")}</th>
+                  <th className="px-4 py-3 text-right">{t("quant.totalReturn")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {runs.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={`cursor-pointer hover:bg-zinc-50 ${run?.id === item.id ? "bg-zinc-50" : ""}`}
+                    onClick={() => void openRun(item.id)}
+                  >
+                    <td className="px-4 py-3">
+                      {item.code}
+                      {typeof item.params?.pair_code === "string" ? `/${item.params.pair_code}` : ""}
+                    </td>
+                    <td className="px-4 py-3">{strategyLabel(item.strategy_id)}</td>
+                    <td className="px-4 py-3">{item.start}</td>
+                    <td className="px-4 py-3">{item.end}</td>
+                    <td className="px-4 py-3 text-right text-zinc-500">
+                      {item.metrics ? percent(item.metrics.total_return) : t("common.dash")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
-          <p className="mt-3 text-sm text-zinc-500">{t("quant.noBacktests")}</p>
+          <p className="px-4 py-6 text-sm text-zinc-500">{t("quant.noBacktests")}</p>
         )}
       </section>
     </div>

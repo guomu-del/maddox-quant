@@ -7,6 +7,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { BacktestPanel } from "@/components/quant/BacktestPanel";
 import { QuantChart } from "@/components/quant/QuantChart";
 import { TradePanel } from "@/components/quant/TradePanel";
+import { PageToolbar, pageSlice } from "@/components/ui/PageToolbar";
 import { quickAddWatchlist } from "@/components/watchlist/WatchlistPanel";
 import { localizeError, useLocale } from "@/i18n/locale";
 import type { MessageKey } from "@/i18n/messages";
@@ -59,6 +60,7 @@ export function QuantWorkbench() {
   const [error, setError] = useState<string | null>(null);
   const [showMa, setShowMa] = useState(true);
   const [watchMessage, setWatchMessage] = useState<string | null>(null);
+  const [watchPage, setWatchPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,22 +204,32 @@ export function QuantWorkbench() {
             ) : watchlist.length === 0 ? (
               <p className="mt-3 text-sm text-zinc-500">{t("quant.noWatchlist")}</p>
             ) : (
-              <ul className="mt-3 space-y-1">
-                {watchlist.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => navigate({ code: item.target_code })}
-                      className={`w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-zinc-100 ${
-                        code === item.target_code ? "bg-zinc-100 font-medium" : ""
-                      }`}
-                    >
-                      <span className="block">{item.target_name || item.target_code}</span>
-                      <span className="text-xs text-zinc-500">{item.target_code}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="mt-3 space-y-1">
+                  {pageSlice(watchlist, watchPage).map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => navigate({ code: item.target_code })}
+                        className={`w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-zinc-100 ${
+                          code === item.target_code ? "bg-zinc-100 font-medium" : ""
+                        }`}
+                      >
+                        <span className="block">{item.target_name || item.target_code}</span>
+                        <span className="text-xs text-zinc-500">{item.target_code}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2">
+                  <PageToolbar
+                    compact
+                    page={watchPage}
+                    totalItems={watchlist.length}
+                    onPageChange={setWatchPage}
+                  />
+                </div>
+              </>
             )}
           </div>
         </aside>
