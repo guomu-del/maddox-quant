@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { quickAddWatchlist } from "@/components/watchlist/WatchlistPanel";
 import { ListSkeleton } from "@/components/ui/LoadingSkeleton";
+import { LIST_PAGE_SIZE, PageToolbar } from "@/components/ui/PageToolbar";
 import { localizeError, useLocale } from "@/i18n/locale";
 import type { MessageKey } from "@/i18n/messages";
 import { formatMoney, formatMoneyCompact } from "@/lib/format";
@@ -77,6 +78,9 @@ export function MarketPage() {
   const [sort, setSort] = useState("change_pct");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [watchMessage, setWatchMessage] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const loadSeq = useRef(0);
+  const skipListScroll = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,21 +111,38 @@ export function MarketPage() {
   }, [locale]);
 
   const loadStocks = useCallback(async () => {
+    const requestId = ++loadSeq.current;
     setStocksLoading(true);
     setStockError(null);
     try {
-      const data = await fetchMarketStocks({ q: q || undefined, sort, order, page, page_size: 50 });
+      const data = await fetchMarketStocks({
+        q: q || undefined,
+        sort,
+        order,
+        page,
+        page_size: LIST_PAGE_SIZE,
+      });
+      if (requestId !== loadSeq.current) return;
       setStocks(data);
     } catch (err) {
+      if (requestId !== loadSeq.current) return;
       setStockError(localizeError(locale, err instanceof Error ? err.message : null, "error.marketSlow"));
     } finally {
-      setStocksLoading(false);
+      if (requestId === loadSeq.current) setStocksLoading(false);
     }
   }, [q, sort, order, page, locale]);
 
   useEffect(() => {
     void loadStocks();
   }, [loadStocks]);
+
+  useEffect(() => {
+    if (skipListScroll.current) {
+      skipListScroll.current = false;
+      return;
+    }
+    listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [page]);
 
   function onSearch(event: FormEvent) {
     event.preventDefault();
@@ -153,7 +174,6 @@ export function MarketPage() {
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil((stocks?.total ?? 0) / 50));
   const gainers = boards?.items.filter((item) => (item.change_pct ?? 0) > 0).slice(0, 10) ?? [];
   const losers = [...(boards?.items ?? [])]
     .filter((item) => (item.change_pct ?? 0) < 0)
@@ -225,91 +245,73 @@ export function MarketPage() {
       </form>
       {watchMessage ? <p className="text-xs text-emerald-600">{watchMessage}</p> : null}
 
-      {stockError ? (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{stockError}</p>
-      ) : stocksLoading && !stocks ? (
-        <ListSkeleton rows={8} />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-          <table className="min-w-[1100px] w-full text-sm">
-            <thead className="bg-zinc-50 text-left text-zinc-600">
-              <tr>
-                {SORTABLE_COLUMNS.map((column) => (
-                  <SortableHeader
-                    key={column.field}
-                    field={column.field}
-                    label={t(column.labelKey)}
-                    sort={sort}
-                    order={order}
-                    onToggle={toggleSort}
-                  />
-                ))}
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {(stocks?.items ?? []).map((item) => (
-                <tr key={item.code} className="border-t border-zinc-100">
-                  <td className="px-3 py-2 font-medium">
-                    <Link href={`/quant?code=${encodeURIComponent(item.code)}`} className="hover:underline">
-                      {item.code}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">{item.name}</td>
-                  <td className="px-3 py-2">{item.last == null ? t("common.dash") : formatMoney(item.last, locale)}</td>
-                  <td className={`px-3 py-2 ${changeClass(item.change_pct)}`}>{formatPct(item.change_pct)}</td>
-                  <td className={`px-3 py-2 ${changeClass(item.change_amt)}`}>
-                    {item.change_amt == null ? t("common.dash") : formatMoney(item.change_amt, locale)}
-                  </td>
-                  <td className="px-3 py-2">{item.open == null ? t("common.dash") : formatMoney(item.open, locale)}</td>
-                  <td className="px-3 py-2">{item.high == null ? t("common.dash") : formatMoney(item.high, locale)}</td>
-                  <td className="px-3 py-2">{item.low == null ? t("common.dash") : formatMoney(item.low, locale)}</td>
-                  <td className="px-3 py-2">
-                    {item.prev_close == null ? t("common.dash") : formatMoney(item.prev_close, locale)}
-                  </td>
-                  <td className="px-3 py-2">{item.volume == null ? t("common.dash") : formatNum(item.volume, locale, 0)}</td>
-                  <td className="px-3 py-2">{formatAmount(item.amount, locale)}</td>
-                  <td className="px-3 py-2">{item.turnover == null ? t("common.dash") : `${item.turnover.toFixed(2)}%`}</td>
-                  <td className="px-3 py-2">{formatNum(item.pe, locale)}</td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => void watchStock(item.code, item.name)}
-                      className="text-xs text-zinc-600 hover:text-zinc-900"
-                    >
-                      {t("common.watch")}
-                    </button>
-                  </td>
+      <div ref={listRef} className="scroll-mt-16 space-y-3">
+        {stockError ? (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{stockError}</p>
+        ) : stocksLoading ? (
+          <ListSkeleton rows={LIST_PAGE_SIZE} />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table className="min-w-[1100px] w-full text-sm">
+              <thead className="bg-zinc-50 text-left text-zinc-600">
+                <tr>
+                  {SORTABLE_COLUMNS.map((column) => (
+                    <SortableHeader
+                      key={column.field}
+                      field={column.field}
+                      label={t(column.labelKey)}
+                      sort={sort}
+                      order={order}
+                      onToggle={toggleSort}
+                    />
+                  ))}
+                  <th className="px-3 py-2" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {(stocks?.items ?? []).map((item) => (
+                  <tr key={item.code} className="border-t border-zinc-100">
+                    <td className="px-3 py-2 font-medium">
+                      <Link href={`/quant?code=${encodeURIComponent(item.code)}`} className="hover:underline">
+                        {item.code}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2">{item.name}</td>
+                    <td className="px-3 py-2">{item.last == null ? t("common.dash") : formatMoney(item.last, locale)}</td>
+                    <td className={`px-3 py-2 ${changeClass(item.change_pct)}`}>{formatPct(item.change_pct)}</td>
+                    <td className={`px-3 py-2 ${changeClass(item.change_amt)}`}>
+                      {item.change_amt == null ? t("common.dash") : formatMoney(item.change_amt, locale)}
+                    </td>
+                    <td className="px-3 py-2">{item.open == null ? t("common.dash") : formatMoney(item.open, locale)}</td>
+                    <td className="px-3 py-2">{item.high == null ? t("common.dash") : formatMoney(item.high, locale)}</td>
+                    <td className="px-3 py-2">{item.low == null ? t("common.dash") : formatMoney(item.low, locale)}</td>
+                    <td className="px-3 py-2">
+                      {item.prev_close == null ? t("common.dash") : formatMoney(item.prev_close, locale)}
+                    </td>
+                    <td className="px-3 py-2">{item.volume == null ? t("common.dash") : formatNum(item.volume, locale, 0)}</td>
+                    <td className="px-3 py-2">{formatAmount(item.amount, locale)}</td>
+                    <td className="px-3 py-2">{item.turnover == null ? t("common.dash") : `${item.turnover.toFixed(2)}%`}</td>
+                    <td className="px-3 py-2">{formatNum(item.pe, locale)}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => void watchStock(item.code, item.name)}
+                        className="text-xs text-zinc-600 hover:text-zinc-900"
+                      >
+                        {t("common.watch")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {totalPages > 1 && stocks ? (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="rounded-lg border border-zinc-300 px-3 py-1 text-sm disabled:opacity-40"
-          >
-            {t("common.prev")}
-          </button>
-          <span className="text-sm text-zinc-600">
-            {page} / {totalPages}
-          </span>
-          <button
-            type="button"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="rounded-lg border border-zinc-300 px-3 py-1 text-sm disabled:opacity-40"
-          >
-            {t("common.next")}
-          </button>
-        </div>
-      ) : null}
+        {stocks && stocks.total > LIST_PAGE_SIZE ? (
+          <PageToolbar page={page} totalItems={stocks.total} onPageChange={setPage} />
+        ) : null}
+      </div>
     </div>
   );
 }

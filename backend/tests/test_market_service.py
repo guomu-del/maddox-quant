@@ -114,6 +114,8 @@ def test_stock_search_sort_and_page():
 
     ranked = market_service.get_stocks(sort="change_pct", order="desc", page=1, page_size=2, provider=provider)
     assert [item.code for item in ranked.items] == ["300750", "600519"]
+    second = market_service.get_stocks(sort="change_pct", order="desc", page=2, page_size=2, provider=provider)
+    assert [item.code for item in second.items] == ["000001"]
     assert ranked.total == 3
     assert provider.stock_calls == 1
 
