@@ -208,8 +208,8 @@ export function MarketPage() {
       ) : stocksLoading && !stocks ? (
         <ListSkeleton rows={8} />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <table className="min-w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+          <table className="min-w-[1100px] w-full text-sm">
             <thead className="bg-zinc-50 text-left text-zinc-600">
               <tr>
                 <th className="px-3 py-2">
@@ -225,6 +225,11 @@ export function MarketPage() {
                   </button>
                 </th>
                 <th className="px-3 py-2">{t("market.changeAmt")}</th>
+                <th className="px-3 py-2">{t("market.open")}</th>
+                <th className="px-3 py-2">{t("market.high")}</th>
+                <th className="px-3 py-2">{t("market.low")}</th>
+                <th className="px-3 py-2">{t("market.prevClose")}</th>
+                <th className="px-3 py-2">{t("market.volume")}</th>
                 <th className="px-3 py-2">
                   <button type="button" onClick={() => toggleSort("amount")}>
                     {t("market.amount")}
@@ -253,6 +258,13 @@ export function MarketPage() {
                   <td className={`px-3 py-2 ${changeClass(item.change_amt)}`}>
                     {item.change_amt == null ? t("common.dash") : formatMoney(item.change_amt, locale)}
                   </td>
+                  <td className="px-3 py-2">{item.open == null ? t("common.dash") : formatMoney(item.open, locale)}</td>
+                  <td className="px-3 py-2">{item.high == null ? t("common.dash") : formatMoney(item.high, locale)}</td>
+                  <td className="px-3 py-2">{item.low == null ? t("common.dash") : formatMoney(item.low, locale)}</td>
+                  <td className="px-3 py-2">
+                    {item.prev_close == null ? t("common.dash") : formatMoney(item.prev_close, locale)}
+                  </td>
+                  <td className="px-3 py-2">{item.volume == null ? t("common.dash") : formatNum(item.volume, locale, 0)}</td>
                   <td className="px-3 py-2">{formatAmount(item.amount, locale)}</td>
                   <td className="px-3 py-2">{item.turnover == null ? t("common.dash") : `${item.turnover.toFixed(2)}%`}</td>
                   <td className="px-3 py-2">{formatNum(item.pe, locale)}</td>

@@ -32,6 +32,11 @@ export interface StockQuote {
   amount: number | null;
   turnover: number | null;
   pe: number | null;
+  volume: number | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  prev_close: number | null;
 }
 
 export interface KlineBar {

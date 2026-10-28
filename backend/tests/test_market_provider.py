@@ -10,11 +10,14 @@ import pytest
 from app.services import market_provider
 from app.services.market_provider import (
     AkshareMarketProvider,
+    _attach_tencent_metrics,
     _daily_symbol,
     _map_board_row,
     _map_index_row,
     _map_kline_frame,
     _map_stock_row,
+    _parse_tencent_quote,
+    _quote_symbol,
     rotate_push2_url,
 )
 
@@ -76,6 +79,70 @@ def test_daily_symbol_maps_exchange_prefixes():
     assert _daily_symbol("600519") == "sh600519"
     assert _daily_symbol("000001") == "sz000001"
     assert _daily_symbol("430047") == "bj430047"
+
+
+def test_quote_symbol_maps_beijing_nine_two_codes():
+    assert _quote_symbol("600519") == "sh600519"
+    assert _quote_symbol("000001") == "sz000001"
+    assert _quote_symbol("300750") == "sz300750"
+    assert _quote_symbol("430047") == "bj430047"
+    assert _quote_symbol("920220") == "bj920220"
+
+
+def test_map_stock_row_reads_sina_ohlcv_and_em_valuation_columns():
+    quote = _map_stock_row(
+        {
+            "代码": "600519",
+            "名称": "贵州茅台",
+            "最新价": 1330.75,
+            "涨跌额": -25.15,
+            "涨跌幅": -1.85,
+            "今开": 1354.98,
+            "最高": 1354.98,
+            "最低": 1322.60,
+            "昨收": 1355.90,
+            "成交量": 38805,
+            "成交额": 5187324618,
+            "换手率": 0.31,
+            "市盈率-动态": 20.43,
+        }
+    )
+    assert quote.open == 1354.98
+    assert quote.high == 1354.98
+    assert quote.low == 1322.60
+    assert quote.prev_close == 1355.90
+    assert quote.volume == 38805
+    assert quote.turnover == 0.31
+    assert quote.pe == 20.43
+
+
+def test_parse_tencent_quote_reads_turnover_and_pe():
+    line = (
+        'v_sh600519="1~贵州茅台~600519~1330.75~1355.90~1354.98~38805~17108~21696~1330.75~9~1330.72~3~'
+        "1330.71~12~1330.70~1~1330.59~1~1330.77~5~1330.96~1~1330.99~1~1331.00~1~1331.07~22~~"
+        "20261028161454~-25.15~-1.85~1354.98~1322.60~1330.75/38805/5187324618~38805~518732~0.31~20.43~~"
+        '1354.98~1322.60~2.39~16635.46~16635.46~6.62~1491.49~1220.31~0.91~-4~1336.77~18.68~20.21";'
+    )
+    parsed = _parse_tencent_quote(line)
+    assert parsed == ("600519", 0.31, 20.43)
+    assert _parse_tencent_quote('v_pv_none_match="1";') is None
+
+
+def test_attach_tencent_metrics_fills_missing_turnover_and_pe(monkeypatch):
+    rows = [
+        _map_stock_row({"代码": "600519", "名称": "贵州茅台", "最新价": 1330.75}),
+        _map_stock_row({"代码": "000001", "名称": "平安银行", "最新价": 11.31, "换手率": 0.87, "市盈率-动态": 5.05}),
+    ]
+    monkeypatch.setattr(
+        market_provider,
+        "_fetch_tencent_metrics",
+        lambda codes: {"600519": (0.31, 20.43), "000001": (9.9, 99.9)},
+    )
+    filled = _attach_tencent_metrics(rows)
+    assert filled[0].turnover == 0.31
+    assert filled[0].pe == 20.43
+    assert filled[1].turnover == 0.87
+    assert filled[1].pe == 5.05
 
 
 def test_map_kline_frame_maps_and_sorts_rows():

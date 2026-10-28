@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import random
 import threading
 import time
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date as date_cls
 from urllib.parse import urlparse, urlunparse
@@ -13,8 +15,13 @@ import requests
 from app.core.config import settings
 from app.schemas.market import BoardQuote, IndexQuote, KlineBar, StockQuote
 
+logger = logging.getLogger(__name__)
+
 CORE_INDEX_CODES = ("000001", "399001", "399006", "000300")
 MIN_STOCK_ROWS = 2000
+TENCENT_QUOTE_URL = "https://qt.gtimg.cn/q={symbols}"
+TENCENT_BATCH_SIZE = 60
+TENCENT_WORKERS = 8
 _PUSH2_HOSTS = (
     "82.push2.eastmoney.com",
     "88.push2.eastmoney.com",
@@ -170,7 +177,7 @@ class AkshareMarketProvider:
         except Exception:
             rows = []
         if len(rows) >= MIN_STOCK_ROWS:
-            return rows
+            return _attach_tencent_metrics(rows)
         if em_ok:
             parts = []
             for fetcher in (ak.stock_sh_a_spot_em, ak.stock_sz_a_spot_em, ak.stock_bj_a_spot_em):
@@ -181,12 +188,12 @@ class AkshareMarketProvider:
             if parts:
                 rows = _map_stock_frame(pd.concat(parts, ignore_index=True))
                 if len(rows) >= MIN_STOCK_ROWS:
-                    return rows
+                    return _attach_tencent_metrics(rows)
         try:
             fallback = _map_stock_frame(ak.stock_zh_a_spot())
         except Exception:
             fallback = []
-        return fallback or rows
+        return _attach_tencent_metrics(fallback or rows)
 
     def fetch_daily_bars(self, code: str, *, start=None, end=None, limit: int = 250):
         import akshare as ak
@@ -274,7 +281,95 @@ def _map_stock_row(row: Mapping[str, object]) -> StockQuote:
         amount=_to_float(_col(row, "成交额", "amount")),
         turnover=_to_float(_col(row, "换手率", "turnover")),
         pe=_to_float(_col(row, "市盈率-动态", "市盈率", "pe")),
+        volume=_to_float(_col(row, "成交量", "volume")),
+        open=_to_float(_col(row, "今开", "open")),
+        high=_to_float(_col(row, "最高", "high")),
+        low=_to_float(_col(row, "最低", "low")),
+        prev_close=_to_float(_col(row, "昨收", "prev_close")),
     )
+
+
+def _quote_symbol(code: str) -> str:
+    if code.startswith(("4", "8")) or code.startswith("92"):
+        return f"bj{code}"
+    if code.startswith(("6", "9")):
+        return f"sh{code}"
+    return f"sz{code}"
+
+
+def _parse_tencent_quote(line: str) -> tuple[str, float | None, float | None] | None:
+    if "pv_none_match" in line or '="' not in line:
+        return None
+    body = line.split('="', 1)[1].rstrip('";\r\n')
+    parts = body.split("~")
+    if len(parts) < 40:
+        return None
+    code = _code6(parts[2])
+    if not code:
+        return None
+    return code, _to_float(parts[38]), _to_float(parts[39])
+
+
+def _fetch_tencent_batch(codes: list[str]) -> dict[str, tuple[float | None, float | None]]:
+    if not codes:
+        return {}
+    symbols = ",".join(_quote_symbol(code) for code in codes)
+    response = _original_requests_get(
+        TENCENT_QUOTE_URL.format(symbols=symbols),
+        timeout=15,
+        headers={
+            "User-Agent": _BROWSER_HEADERS["User-Agent"],
+            "Referer": "https://finance.qq.com/",
+        },
+    )
+    response.raise_for_status()
+    text = response.content.decode("gbk", errors="replace")
+    extras: dict[str, tuple[float | None, float | None]] = {}
+    for line in text.splitlines():
+        parsed = _parse_tencent_quote(line)
+        if parsed is None:
+            continue
+        extras[parsed[0]] = (parsed[1], parsed[2])
+    return extras
+
+
+def _fetch_tencent_metrics(codes: list[str]) -> dict[str, tuple[float | None, float | None]]:
+    extras: dict[str, tuple[float | None, float | None]] = {}
+    batches = [codes[index : index + TENCENT_BATCH_SIZE] for index in range(0, len(codes), TENCENT_BATCH_SIZE)]
+    if not batches:
+        return extras
+    workers = min(TENCENT_WORKERS, len(batches))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(_fetch_tencent_batch, batch) for batch in batches]
+        for future in as_completed(futures):
+            try:
+                extras.update(future.result())
+            except Exception:
+                logger.exception("tencent quote batch failed")
+    return extras
+
+
+def _attach_tencent_metrics(rows: list[StockQuote]) -> list[StockQuote]:
+    missing = [item.code for item in rows if item.turnover is None or item.pe is None]
+    if not missing:
+        return rows
+    try:
+        extras = _fetch_tencent_metrics(missing)
+    except Exception:
+        logger.exception("tencent quote fill failed")
+        return rows
+    if not extras:
+        return rows
+    for item in rows:
+        extra = extras.get(item.code)
+        if extra is None:
+            continue
+        turnover, pe = extra
+        if item.turnover is None:
+            item.turnover = turnover
+        if item.pe is None:
+            item.pe = pe
+    return rows
 
 
 def _daily_symbol(code: str) -> str:
