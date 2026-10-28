@@ -59,6 +59,9 @@ export interface BacktestMetrics {
   win_rate: number;
   profit_factor: number;
   trade_count: number;
+  hold_return?: number;
+  excess_return?: number;
+  winner?: "strategy" | "hold" | "tie";
 }
 
 export interface BacktestEquityPoint {

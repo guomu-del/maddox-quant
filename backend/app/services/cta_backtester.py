@@ -304,6 +304,9 @@ def _metrics(
     if not equity or initial_cash <= 0:
         return {
             "total_return": 0.0,
+            "hold_return": 0.0,
+            "excess_return": 0.0,
+            "winner": "tie",
             "annual_return": 0.0,
             "max_drawdown": 0.0,
             "win_rate": 0.0,
@@ -311,7 +314,17 @@ def _metrics(
             "trade_count": len(trades),
         }
 
-    total_return = equity[-1]["value"] / initial_cash - 1
+    strategy_end = equity[-1]["value"]
+    hold_end = float(equity[-1].get("hold", strategy_end))
+    total_return = strategy_end / initial_cash - 1
+    hold_return = hold_end / initial_cash - 1
+    excess_return = (strategy_end - hold_end) / initial_cash
+    if excess_return > 0:
+        winner = "strategy"
+    elif excess_return < 0:
+        winner = "hold"
+    else:
+        winner = "tie"
     first_date = date.fromisoformat(equity[0]["date"])
     last_date = date.fromisoformat(equity[-1]["date"])
     days = max((last_date - first_date).days, 1)
@@ -331,6 +344,9 @@ def _metrics(
     profit_factor = sum(wins) / sum(losses) if losses else 0.0
     return {
         "total_return": total_return,
+        "hold_return": hold_return,
+        "excess_return": excess_return,
+        "winner": winner,
         "annual_return": annual_return,
         "max_drawdown": max_drawdown,
         "win_rate": win_rate,

@@ -6,6 +6,8 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,7 +22,7 @@ import {
   fetchBacktestStrategies,
   submitBacktest,
 } from "@/lib/quant-api";
-import type { BacktestRun, BacktestStrategy } from "@/types/quant";
+import type { BacktestEquityPoint, BacktestRun, BacktestStrategy } from "@/types/quant";
 
 function inputDate(value: Date): string {
   return value.toISOString().slice(0, 10);
@@ -35,6 +37,46 @@ function defaultDates(): { start: string; end: string } {
 
 function percent(value: number): string {
   return `${(value * 100).toFixed(2)}%`;
+}
+
+function maxDrawdownRange(equity: BacktestEquityPoint[]): {
+  peak: BacktestEquityPoint;
+  trough: BacktestEquityPoint;
+} | null {
+  let peakValue = Number.NEGATIVE_INFINITY;
+  let peakIndex = 0;
+  let maxDrawdown = 0;
+  let troughIndex = 0;
+  let drawdownPeakIndex = 0;
+  equity.forEach((point, index) => {
+    if (point.value >= peakValue) {
+      peakValue = point.value;
+      peakIndex = index;
+    }
+    if (peakValue > 0) {
+      const drawdown = (peakValue - point.value) / peakValue;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+        troughIndex = index;
+        drawdownPeakIndex = peakIndex;
+      }
+    }
+  });
+  if (maxDrawdown <= 0 || drawdownPeakIndex === troughIndex) return null;
+  return { peak: equity[drawdownPeakIndex], trough: equity[troughIndex] };
+}
+
+function compareToHold(run: BacktestRun): { excess: number; winner: "strategy" | "hold" | "tie" } | null {
+  if (typeof run.metrics?.excess_return === "number" && run.metrics.winner) {
+    const winner =
+      run.metrics.winner === "strategy" || run.metrics.winner === "hold" ? run.metrics.winner : "tie";
+    return { excess: run.metrics.excess_return, winner };
+  }
+  const last = run.equity?.at(-1);
+  if (!last || last.hold == null || !(run.cash > 0)) return null;
+  const excess = (last.value - last.hold) / run.cash;
+  const winner = excess > 0 ? "strategy" : excess < 0 ? "hold" : "tie";
+  return { excess, winner };
 }
 
 const FIELD_CLASS = "h-8 w-full rounded-md border border-zinc-300 px-2 text-sm";
@@ -223,14 +265,41 @@ export function BacktestPanel({ code }: { code: string }) {
     }
   }
 
+  const comparison = run ? compareToHold(run) : null;
+  const drawdownRange = run?.equity?.length ? maxDrawdownRange(run.equity) : null;
+  const winnerItem =
+    comparison?.winner === "strategy"
+      ? { text: t("quant.winnerStrategy"), className: "text-red-600" }
+      : comparison?.winner === "hold"
+        ? { text: t("quant.winnerHold"), className: "text-emerald-600" }
+        : { text: t("quant.winnerTie"), className: "text-zinc-700" };
   const metricItems = run?.metrics
     ? [
-        [t("quant.totalReturn"), percent(run.metrics.total_return), t("quant.hintTotalReturn")],
-        [t("quant.annualReturn"), percent(run.metrics.annual_return), t("quant.hintAnnualReturn")],
-        [t("quant.maxDrawdown"), percent(run.metrics.max_drawdown), t("quant.hintMaxDrawdown")],
-        [t("quant.winRate"), percent(run.metrics.win_rate), t("quant.hintWinRate")],
-        [t("quant.profitFactor"), number(run.metrics.profit_factor), t("quant.hintProfitFactor")],
-        [t("quant.tradeCount"), String(run.metrics.trade_count), t("quant.hintTradeCount")],
+        { label: t("quant.totalReturn"), value: percent(run.metrics.total_return), hint: t("quant.hintTotalReturn") },
+        {
+          label: t("quant.winner"),
+          value: comparison ? winnerItem.text : t("common.dash"),
+          hint: t("quant.hintWinner"),
+          valueClass: comparison ? winnerItem.className : undefined,
+        },
+        {
+          label: t("quant.excessReturn"),
+          value: comparison ? percent(comparison.excess) : t("common.dash"),
+          hint: t("quant.hintExcessReturn"),
+          valueClass:
+            comparison == null
+              ? undefined
+              : comparison.excess > 0
+                ? "text-red-600"
+                : comparison.excess < 0
+                  ? "text-emerald-600"
+                  : "text-zinc-700",
+        },
+        { label: t("quant.annualReturn"), value: percent(run.metrics.annual_return), hint: t("quant.hintAnnualReturn") },
+        { label: t("quant.maxDrawdown"), value: percent(run.metrics.max_drawdown), hint: t("quant.hintMaxDrawdown") },
+        { label: t("quant.winRate"), value: percent(run.metrics.win_rate), hint: t("quant.hintWinRate") },
+        { label: t("quant.profitFactor"), value: number(run.metrics.profit_factor), hint: t("quant.hintProfitFactor") },
+        { label: t("quant.tradeCount"), value: String(run.metrics.trade_count), hint: t("quant.hintTradeCount") },
       ]
     : [];
 
@@ -413,19 +482,54 @@ export function BacktestPanel({ code }: { code: string }) {
                     <YAxis domain={["auto", "auto"]} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(value) => number(Number(value))} />
                     <Legend />
+                    {drawdownRange ? (
+                      <ReferenceArea
+                        x1={drawdownRange.peak.date}
+                        x2={drawdownRange.trough.date}
+                        fill="#fecaca"
+                        fillOpacity={0.45}
+                        strokeOpacity={0}
+                      />
+                    ) : null}
+                    {drawdownRange && run.cash > 0 ? (
+                      <>
+                        <ReferenceLine
+                          x={drawdownRange.peak.date}
+                          stroke="#dc2626"
+                          strokeWidth={1.5}
+                          label={{
+                            value: percent(drawdownRange.peak.value / run.cash - 1),
+                            fill: "#dc2626",
+                            fontSize: 11,
+                            position: "insideTopLeft",
+                          }}
+                        />
+                        <ReferenceLine
+                          x={drawdownRange.trough.date}
+                          stroke="#dc2626"
+                          strokeWidth={1.5}
+                          label={{
+                            value: percent(drawdownRange.trough.value / run.cash - 1),
+                            fill: "#dc2626",
+                            fontSize: 11,
+                            position: "insideTopRight",
+                          }}
+                        />
+                      </>
+                    ) : null}
                     <Line
                       type="monotone"
-                      dataKey="value"
-                      name={t("quant.equityStrategy")}
+                      dataKey="hold"
+                      name={t("quant.equityHold")}
                       stroke="#18181b"
                       strokeWidth={2}
                       dot={false}
                     />
                     <Line
                       type="monotone"
-                      dataKey="hold"
-                      name={t("quant.equityHold")}
-                      stroke="#0284c7"
+                      dataKey="value"
+                      name={t("quant.equityStrategy")}
+                      stroke="#b45309"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -440,13 +544,13 @@ export function BacktestPanel({ code }: { code: string }) {
           <section className="rounded-xl border border-zinc-200 bg-white p-5">
             <h3 className="text-sm font-semibold">{t("quant.metrics")}</h3>
             <dl className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {metricItems.map(([label, value, hint]) => (
-                <div key={label} className="overflow-visible rounded-lg bg-zinc-100 px-4 py-3">
+              {metricItems.map((item) => (
+                <div key={item.label} className="overflow-visible rounded-lg bg-zinc-100 px-4 py-3">
                   <dt className="flex items-center text-xs text-zinc-500">
-                    {label}
-                    <MetricHint text={hint} />
+                    {item.label}
+                    <MetricHint text={item.hint} />
                   </dt>
-                  <dd className="mt-1 text-lg font-semibold">{value}</dd>
+                  <dd className={`mt-1 text-lg font-semibold ${item.valueClass ?? ""}`}>{item.value}</dd>
                 </div>
               ))}
             </dl>

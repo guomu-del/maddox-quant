@@ -126,6 +126,17 @@ def test_equity_includes_buy_and_hold_benchmark():
     assert result.equity[-1]["hold"] == leftover + quantity * bars[-1].close
     assert result.equity[0]["value"] == cash
     assert result.equity[-1]["hold"] != result.equity[0]["hold"]
+    hold_end = result.equity[-1]["hold"]
+    strategy_end = result.equity[-1]["value"]
+    excess = (strategy_end - hold_end) / cash
+    assert result.metrics["hold_return"] == pytest.approx(hold_end / cash - 1)
+    assert result.metrics["excess_return"] == pytest.approx(excess)
+    if excess > 0:
+        assert result.metrics["winner"] == "strategy"
+    elif excess < 0:
+        assert result.metrics["winner"] == "hold"
+    else:
+        assert result.metrics["winner"] == "tie"
 
 
 def test_backtest_uses_submitted_cash_as_starting_equity():
